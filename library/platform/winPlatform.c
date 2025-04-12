@@ -46,33 +46,33 @@ socket_t createSocket(int type, int protocol)
   return sock_fd;
 }
 
-int bindSocket(socket_t sockfd, const struct sockaddr *addr, socklen_t addrlen)
+int bindSocket(socket_t socket, const struct sockaddr *addr, socklen_t addrlen)
 {
-  if (bind(sockfd, addr, addrlen) == SOCKET_ERROR)
+  if (bind(socket, addr, addrlen) == SOCKET_ERROR)
   {
     printf("Socket bind failed\n");
-    closesocket(sockfd);
+    closesocket(socket);
     WSACleanup();
     return PLATFORM_FAILURE;
   }
   return PLATFORM_SUCCESS;
 }
 
-int listenSocket(socket_t sockfd, int maxClients)
+int listenSocket(socket_t socket, int maxClients)
 {
-  if (listen(sockfd, maxClients) == SOCKET_ERROR)
+  if (listen(socket, maxClients) == SOCKET_ERROR)
   {
     printf("Listen failed\n");
-    closesocket(sockfd);
+    closesocket(socket);
     WSACleanup();
     return PLATFORM_FAILURE;
   }
   return PLATFORM_SUCCESS;
 }
 
-socket_t acceptSocket(socket_t sockfd, struct sockaddr *addr, socklen_t *addrlen)
+socket_t acceptSocket(socket_t socket, struct sockaddr *addr, socklen_t *addrlen)
 {
-  socket_t clientSocket = accept(sockfd, addr, addrlen);
+  socket_t clientSocket = accept(socket, addr, addrlen);
   if (clientSocket == INVALID_SOCKET)
   {
     printf("Accept failed\n");
@@ -81,9 +81,9 @@ socket_t acceptSocket(socket_t sockfd, struct sockaddr *addr, socklen_t *addrlen
   return clientSocket;
 }
 
-int connectSocket(socket_t sockfd, const struct sockaddr *addr, socklen_t addrlen)
+int connectSocket(socket_t socket, const struct sockaddr *addr, socklen_t addrlen)
 {
-  if (connect(sockfd, addr, addrlen) == SOCKET_ERROR)
+  if (connect(socket, addr, addrlen) == SOCKET_ERROR)
   {
     printf("Connect failed. Error code: %d\n", WSAGetLastError());
     return PLATFORM_FAILURE;
@@ -91,38 +91,38 @@ int connectSocket(socket_t sockfd, const struct sockaddr *addr, socklen_t addrle
   return PLATFORM_SUCCESS;
 }
 
-int sendData(socket_t sockfd, const void *buf, size_t len, int flags)
+int sendData(socket_t socket, const void *buf, size_t len, int flags)
 {
-  if (sockfd == INVALID_SOCKET)
+  if (socket == INVALID_SOCKET)
   {
     return PLATFORM_FAILURE;
   }
 
-  if (send(sockfd, buf, len, flags) == SOCKET_ERROR)
+  if (send(socket, buf, len, flags) == SOCKET_ERROR)
   {
-    printf("Send failed to client socket %d. Error: %d\n", sockfd, WSAGetLastError());
+    printf("Send failed to client socket %d. Error: %d\n", socket, WSAGetLastError());
     return PLATFORM_FAILURE;
   }
   return PLATFORM_SUCCESS;
 }
 
-int receiveData(socket_t sockfd, void *buf, size_t len, int flags)
+int recvData(socket_t socket, void *buf, size_t len, int flags)
 {
-  if (sockfd == INVALID_SOCKET)
+  if (socket == INVALID_SOCKET)
   {
     return PLATFORM_FAILURE;
   }
 
-  int bytesReceived = recv(sockfd, buf, len, flags);
+  int bytesReceived = recv(socket, buf, len, flags);
   if (bytesReceived == SOCKET_ERROR)
   {
-    printf("Receive failed from socket %d. Error: %d\n", sockfd, WSAGetLastError());
+    printf("Receive failed from socket %d. Error: %d\n", socket, WSAGetLastError());
     return PLATFORM_FAILURE;
   }
 
   if (bytesReceived == 0)
   {
-    printf("Connection closed by client on socket %d\n", sockfd);
+    printf("Connection closed by client on socket %d\n", socket);
     return PLATFORM_CONNECTION_CLOSED;
   }
 
@@ -134,24 +134,24 @@ int platformGetLastError()
   return WSAGetLastError();
 }
 
-void shutdownRead(socket_t sockfd)
+void shutdownRead(socket_t socket)
 {
-  shutdown(sockfd, SD_RECEIVE);
+  shutdown(socket, SD_RECEIVE);
 }
 
-void shutdownWrite(socket_t sockfd)
+void shutdownWrite(socket_t socket)
 {
-  shutdown(sockfd, SD_SEND);
+  shutdown(socket, SD_SEND);
 }
 
-void shutdownBoth(socket_t sockfd)
+void shutdownBoth(socket_t socket)
 {
-  shutdown(sockfd, SD_BOTH);
+  shutdown(socket, SD_BOTH);
 }
 
-int closeSocket(socket_t sockfd)
+int closeSocket(socket_t socket)
 {
-  if (closesocket(sockfd) == SOCKET_ERROR)
+  if (closesocket(socket) == SOCKET_ERROR)
   {
     printf("Socket closure failed. Error: %d\n", WSAGetLastError());
     return PLATFORM_FAILURE;

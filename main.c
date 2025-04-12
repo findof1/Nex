@@ -44,9 +44,14 @@ int main()
       continue;
     }
 
-    char msg[] = "Hello World!";
+    char httpResponse[] =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/plain\r\n"
+        "Content-Length: 12\r\n"
+        "\r\n"
+        "Hello World!";
 
-    sendData(clientSocket, msg, sizeof(msg) - 1, 0);
+    sendData(clientSocket, httpResponse, sizeof(httpResponse) - 1, 0);
 
     closeSocket(clientSocket);
   }
