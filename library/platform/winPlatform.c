@@ -120,13 +120,38 @@ int recvData(socket_t socket, void *buf, size_t len, int flags)
     return PLATFORM_FAILURE;
   }
 
-  if (bytesReceived == 0)
+  if (bytesReceived == PLATFORM_CONNECTION_CLOSED)
   {
     printf("Connection closed by client on socket %d\n", socket);
-    return PLATFORM_CONNECTION_CLOSED;
+    return PLATFORM_FAILURE;
   }
 
   return bytesReceived;
+}
+
+int recvAll(socket_t socket, void *buf, size_t len, int flags)
+{
+  size_t totalReceived = 0;
+  char *buffer = (char *)buf;
+
+  while (totalReceived < len)
+  {
+    int bytesReceived = recvData(socket, buffer + totalReceived, len - totalReceived, flags);
+    if (bytesReceived == PLATFORM_FAILURE)
+    {
+      printf("recvAll: Failed while receiving data\n");
+      return PLATFORM_FAILURE;
+    }
+    if (bytesReceived == PLATFORM_CONNECTION_CLOSED)
+    {
+      printf("recvAll: Connection closed unexpectedly\n");
+      return PLATFORM_FAILURE;
+    }
+
+    totalReceived += bytesReceived;
+  }
+
+  return totalReceived;
 }
 
 int platformGetLastError()

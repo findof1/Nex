@@ -40,6 +40,7 @@ socket_t acceptSocket(socket_t socket, struct sockaddr *addr, socklen_t *addrlen
 int connectSocket(socket_t socket, const struct sockaddr *addr, socklen_t addrlen);
 int sendData(socket_t socket, const void *buf, size_t len, int flags);
 int recvData(socket_t socket, void *buf, size_t len, int flags);
+int recvAll(socket_t socket, void *buf, size_t len, int flags);
 
 int platformGetLastError();
 

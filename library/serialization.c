@@ -1,6 +1,6 @@
 #include "serialization.h"
 
-int send_int(socket_t socket, int value)
+int sendInt(socket_t socket, int value)
 {
   uint8_t type = TYPE_INT;
   uint32_t size = htonl(sizeof(value));
@@ -20,7 +20,7 @@ int send_int(socket_t socket, int value)
   return PLATFORM_SUCCESS;
 }
 
-int recv_int(socket_t socket, int *out)
+int recvInt(socket_t socket, int *out)
 {
   uint8_t type;
   uint32_t size, netValue;
@@ -54,7 +54,7 @@ int recv_int(socket_t socket, int *out)
   return PLATFORM_SUCCESS;
 }
 
-int send_float(socket_t socket, float value)
+int sendFloat(socket_t socket, float value)
 {
   uint8_t type = TYPE_FLOAT;
   uint32_t size = htonl(sizeof(value));
@@ -78,7 +78,7 @@ int send_float(socket_t socket, float value)
   return PLATFORM_SUCCESS;
 }
 
-int recv_float(socket_t socket, float *out)
+int recvFloat(socket_t socket, float *out)
 {
   uint8_t type;
   uint32_t size, netValue;
@@ -114,9 +114,9 @@ int recv_float(socket_t socket, float *out)
   return PLATFORM_SUCCESS;
 }
 
-int send_string(socket_t socket, const char *str)
+int sendString(socket_t socket, const char *str)
 {
-  uint8_t type = TYPE_FLOAT;
+  uint8_t type = TYPE_STRING;
   uint32_t length = strlen(str);
   uint32_t size = htonl(length);
 
@@ -128,14 +128,81 @@ int send_string(socket_t socket, const char *str)
   {
     return PLATFORM_FAILURE;
   }
-  if (sendData(socket, &str, length, 0) == PLATFORM_FAILURE)
+  if (sendData(socket, str, length, 0) == PLATFORM_FAILURE)
+  {
+    return PLATFORM_FAILURE;
+  }
+
+  return PLATFORM_SUCCESS;
+}
+
+int recvString(socket_t socket, char **out)
+{
+  uint8_t type;
+  uint32_t size;
+  char *str;
+
+  if (recvData(socket, &type, 1, 0) == PLATFORM_FAILURE)
+  {
+    printf("recvString: Failed to receive type byte\n");
+    return PLATFORM_FAILURE;
+  }
+
+  if (type != TYPE_STRING)
+  {
+    printf("recvString: Expected TYPE_STRING (%d), but got %d\n", TYPE_STRING, type);
+    return PLATFORM_FAILURE;
+  }
+
+  if (recvData(socket, &size, 4, 0) == PLATFORM_FAILURE)
+  {
+    printf("recvString: Failed to receive string size\n");
+    return PLATFORM_FAILURE;
+  }
+  size = ntohl(size);
+
+  char *buf = (char *)malloc(size + 1);
+  if (buf == NULL)
+  {
+    printf("recvString: Memory allocation failed for size %u\n", size);
+    return PLATFORM_FAILURE;
+  }
+
+  if (recvAll(socket, buf, size, 0) == PLATFORM_FAILURE)
+  {
+    printf("recvString: Failed to receive string data of size %u\n", size);
+    free(buf);
+    return PLATFORM_FAILURE;
+  }
+
+  (buf)[size] = '\0';
+  *out = buf;
+
+  return PLATFORM_SUCCESS;
+}
+
+int sendJSON(socket_t socket, const cJSON *json)
+{
+  uint8_t type = TYPE_JSON;
+  char *str = cJSON_PrintUnformatted(json);
+  uint32_t length = strlen(str);
+  uint32_t size = htonl(length);
+  if (sendData(socket, &type, sizeof(uint8_t), 0) == PLATFORM_FAILURE)
+  {
+    return PLATFORM_FAILURE;
+  }
+  if (sendData(socket, &size, sizeof(uint32_t), 0) == PLATFORM_FAILURE)
+  {
+    return PLATFORM_FAILURE;
+  }
+  if (sendData(socket, str, length, 0) == PLATFORM_FAILURE)
   {
     return PLATFORM_FAILURE;
   }
   return PLATFORM_SUCCESS;
 }
 
-int recv_string(socket_t socket, char **out)
+int recvJSON(socket_t socket, cJSON **json)
 {
   uint8_t type;
   uint32_t size;
@@ -146,7 +213,7 @@ int recv_string(socket_t socket, char **out)
     return PLATFORM_FAILURE;
   }
 
-  if (type != TYPE_STRING)
+  if (type != TYPE_JSON)
   {
     return PLATFORM_FAILURE;
   }
@@ -157,19 +224,26 @@ int recv_string(socket_t socket, char **out)
   }
   size = ntohl(size);
 
-  *out = (char *)malloc(size + 1);
-  if (*out == NULL)
+  char *buf = (char *)malloc(size + 1);
+  if (buf == NULL)
   {
     return PLATFORM_FAILURE;
   }
 
-  if (recvData(socket, *out, size, 0) == PLATFORM_FAILURE)
+  if (recvAll(socket, buf, size, 0) == PLATFORM_FAILURE)
   {
-    free(*out);
+    free(buf);
     return PLATFORM_FAILURE;
   }
 
-  (*out)[size] = '\0';
+  (buf)[size] = '\0';
+  *json = cJSON_Parse(buf);
+  free(buf);
+
+  if (*json == NULL)
+  {
+    return PLATFORM_FAILURE;
+  }
 
   return PLATFORM_SUCCESS;
 }
