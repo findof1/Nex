@@ -1,72 +1,102 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
 #include "platform.h"
 #include "serialization.h"
-#include <assert.h>
 
-void run_tests()
+void *handleClient(void *arg);
+
+int main()
 {
   if (platformInit() != PLATFORM_SUCCESS)
   {
     printf("Platform initialization failed\n");
+    return 1;
   }
 
   socket_t server = createSocket(SOCK_STREAM, IPPROTO_TCP);
   struct sockaddr_in addr = createSockaddrIn(8080, "127.0.0.1");
-  bindSocket(server, (struct sockaddr *)&addr, sizeof(addr));
-  listenSocket(server, 1);
 
-  socket_t client = createSocket(SOCK_STREAM, IPPROTO_TCP);
-  connectSocket(client, (struct sockaddr *)&addr, sizeof(addr));
+  if (bindSocket(server, (struct sockaddr *)&addr, sizeof(addr)) != 0)
+  {
+    printf("Bind failed\n");
+    return 1;
+  }
 
-  struct sockaddr_in clientAddr;
-  socklen_t addrLen = sizeof(clientAddr);
-  socket_t accepted = acceptSocket(server, (struct sockaddr *)&clientAddr, &addrLen);
+  if (listenSocket(server, 10) != 0)
+  {
+    printf("Listen failed\n");
+    return 1;
+  }
 
-  int intVal = 42, intRecv;
-  assert(sendInt(client, intVal) == PLATFORM_SUCCESS);
-  assert(recvInt(accepted, &intRecv) == PLATFORM_SUCCESS);
-  assert(intRecv == intVal);
+  printf("Server is running on port 8080. Waiting for clients...\n");
 
-  float floatVal = 3.14159f, floatRecv;
-  assert(sendFloat(client, floatVal) == PLATFORM_SUCCESS);
-  assert(recvFloat(accepted, &floatRecv) == PLATFORM_SUCCESS);
-  assert(floatRecv == floatVal);
+  while (1)
+  {
+    struct sockaddr_in clientAddr;
+    socklen_t addrLen = sizeof(clientAddr);
+    socket_t *client = malloc(sizeof(socket_t));
+    *client = acceptSocket(server, (struct sockaddr *)&clientAddr, &addrLen);
+    if (*client < 0)
+    {
+      printf("Accept failed\n");
+      free(client);
+      continue;
+    }
 
-  const char *strVal = "Hello, socket!";
-  char *strRecv = NULL;
-  assert(sendString(client, strVal) == PLATFORM_SUCCESS);
-  assert(recvString(accepted, &strRecv) == PLATFORM_SUCCESS);
-  assert(strcmp(strVal, strRecv) == 0);
-  free(strRecv);
+    printf("[Server] Accepted new connection\n");
 
-  cJSON *json = cJSON_CreateObject();
-  cJSON_AddStringToObject(json, "message", "hello");
-  cJSON_AddNumberToObject(json, "value", 123);
+    pthread_t thread;
+    int result = pthread_create(&thread, NULL, handleClient, client);
+    if (result != 0)
+    {
+      printf("Failed to create thread\n");
+      closeSocket(*client);
+      free(client);
+    }
+    else
+    {
+      pthread_detach(thread);
+    }
+  }
 
-  assert(sendJSON(client, json) == PLATFORM_SUCCESS);
-
-  cJSON *jsonRecv = NULL;
-  assert(recvJSON(accepted, &jsonRecv) == PLATFORM_SUCCESS);
-
-  const char *msg = cJSON_GetObjectItem(jsonRecv, "message")->valuestring;
-  int val = cJSON_GetObjectItem(jsonRecv, "value")->valueint;
-
-  assert(strcmp(msg, "hello") == 0);
-  assert(val == 123);
-
-  cJSON_Delete(json);
-  cJSON_Delete(jsonRecv);
-
-  closeSocket(client);
-  closeSocket(accepted);
   closeSocket(server);
   platformCleanup();
-
-  printf("All tests passed.\n");
+  return 0;
 }
 
-int main()
+void *handleClient(void *arg)
 {
-  run_tests();
-  return 0;
+  socket_t client = *(socket_t *)arg;
+  free(arg);
+
+  int intVal;
+  if (recvInt(client, &intVal) == PLATFORM_SUCCESS)
+    printf("[Client] Received int: %d\n", intVal);
+
+  float floatVal;
+  if (recvFloat(client, &floatVal) == PLATFORM_SUCCESS)
+    printf("[Client] Received float: %f\n", floatVal);
+
+  char *recvStr = NULL;
+  if (recvString(client, &recvStr) == PLATFORM_SUCCESS)
+  {
+    printf("[Client] Received string: %s\n", recvStr);
+    free(recvStr);
+  }
+
+  cJSON *recvJson = NULL;
+  if (recvJSON(client, &recvJson) == PLATFORM_SUCCESS)
+  {
+    char *jsonStr = cJSON_Print(recvJson);
+    printf("[Client] Received JSON:\n%s\n", jsonStr);
+    free(jsonStr);
+    cJSON_Delete(recvJson);
+  }
+
+  closeSocket(client);
+  printf("[Client] Connection closed.\n");
+
+  return NULL;
 }
