@@ -31,8 +31,10 @@ typedef struct
   {
     pthread_t *clientThreads;
     ServerClient *clients;
+    pthread_t acceptThread;
     int maxClients;
     int numClients;
+    bool listening;
   } server;
 
   // client specific fields

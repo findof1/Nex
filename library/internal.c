@@ -1,2 +1,2 @@
 #include "internal.h"
-static NetworkContext networkContext;
+NetworkContext networkContext;

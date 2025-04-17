@@ -1,102 +1,70 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
 #include "platform.h"
 #include "serialization.h"
+#include <assert.h>
+#include "core.h"
 
-void *handleClient(void *arg);
-
-int main()
+void run_tests()
 {
-  if (platformInit() != PLATFORM_SUCCESS)
-  {
-    printf("Platform initialization failed\n");
-    return 1;
-  }
+  init(CONNECTION_TCP, Server);
 
   socket_t server = createSocket(SOCK_STREAM, IPPROTO_TCP);
   struct sockaddr_in addr = createSockaddrIn(8080, "127.0.0.1");
+  bindSocket(server, (struct sockaddr *)&addr, sizeof(addr));
+  listenSocket(server, 1);
 
-  if (bindSocket(server, (struct sockaddr *)&addr, sizeof(addr)) != 0)
-  {
-    printf("Bind failed\n");
-    return 1;
-  }
+  socket_t client = createSocket(SOCK_STREAM, IPPROTO_TCP);
+  connectSocket(client, (struct sockaddr *)&addr, sizeof(addr));
 
-  if (listenSocket(server, 10) != 0)
-  {
-    printf("Listen failed\n");
-    return 1;
-  }
+  struct sockaddr_in clientAddr;
+  socklen_t addrLen = sizeof(clientAddr);
+  socket_t accepted = acceptSocket(server, (struct sockaddr *)&clientAddr, &addrLen);
 
-  printf("Server is running on port 8080. Waiting for clients...\n");
+  int intVal = 42, intRecv;
+  assert(sendInt(client, intVal) == PLATFORM_SUCCESS);
+  assert(recvInt(accepted, &intRecv) == PLATFORM_SUCCESS);
+  assert(intRecv == intVal);
 
-  while (1)
-  {
-    struct sockaddr_in clientAddr;
-    socklen_t addrLen = sizeof(clientAddr);
-    socket_t *client = malloc(sizeof(socket_t));
-    *client = acceptSocket(server, (struct sockaddr *)&clientAddr, &addrLen);
-    if (*client < 0)
-    {
-      printf("Accept failed\n");
-      free(client);
-      continue;
-    }
+  float floatVal = 3.14159f, floatRecv;
+  assert(sendFloat(client, floatVal) == PLATFORM_SUCCESS);
+  assert(recvFloat(accepted, &floatRecv) == PLATFORM_SUCCESS);
+  assert(floatRecv == floatVal);
 
-    printf("[Server] Accepted new connection\n");
+  const char *strVal = "Hello, socket!";
+  char *strRecv = NULL;
+  assert(sendString(client, strVal) == PLATFORM_SUCCESS);
+  assert(recvString(accepted, &strRecv) == PLATFORM_SUCCESS);
+  assert(strcmp(strVal, strRecv) == 0);
+  free(strRecv);
 
-    pthread_t thread;
-    int result = pthread_create(&thread, NULL, handleClient, client);
-    if (result != 0)
-    {
-      printf("Failed to create thread\n");
-      closeSocket(*client);
-      free(client);
-    }
-    else
-    {
-      pthread_detach(thread);
-    }
-  }
+  cJSON *json = cJSON_CreateObject();
+  cJSON_AddStringToObject(json, "message", "hello");
+  cJSON_AddNumberToObject(json, "value", 123);
 
-  closeSocket(server);
-  platformCleanup();
-  return 0;
-}
+  assert(sendJSON(client, json) == PLATFORM_SUCCESS);
 
-void *handleClient(void *arg)
-{
-  socket_t client = *(socket_t *)arg;
-  free(arg);
+  cJSON *jsonRecv = NULL;
+  assert(recvJSON(accepted, &jsonRecv) == PLATFORM_SUCCESS);
 
-  int intVal;
-  if (recvInt(client, &intVal) == PLATFORM_SUCCESS)
-    printf("[Client] Received int: %d\n", intVal);
+  const char *msg = cJSON_GetObjectItem(jsonRecv, "message")->valuestring;
+  int val = cJSON_GetObjectItem(jsonRecv, "value")->valueint;
 
-  float floatVal;
-  if (recvFloat(client, &floatVal) == PLATFORM_SUCCESS)
-    printf("[Client] Received float: %f\n", floatVal);
+  assert(strcmp(msg, "hello") == 0);
+  assert(val == 123);
 
-  char *recvStr = NULL;
-  if (recvString(client, &recvStr) == PLATFORM_SUCCESS)
-  {
-    printf("[Client] Received string: %s\n", recvStr);
-    free(recvStr);
-  }
-
-  cJSON *recvJson = NULL;
-  if (recvJSON(client, &recvJson) == PLATFORM_SUCCESS)
-  {
-    char *jsonStr = cJSON_Print(recvJson);
-    printf("[Client] Received JSON:\n%s\n", jsonStr);
-    free(jsonStr);
-    cJSON_Delete(recvJson);
-  }
+  cJSON_Delete(json);
+  cJSON_Delete(jsonRecv);
 
   closeSocket(client);
-  printf("[Client] Connection closed.\n");
+  closeSocket(accepted);
+  closeSocket(server);
+  platformCleanup();
 
-  return NULL;
+  printf("All tests passed.\n");
+}
+
+int main()
+{
+  run_tests();
+  return 0;
 }

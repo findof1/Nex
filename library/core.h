@@ -20,6 +20,8 @@ typedef enum
   NETWORK_ERR_SEND,
   NETWORK_ERR_RECV,
   NETWORK_ERR_TIMEOUT,
+  NETWORK_ERR_THREAD,
+  NETWORK_ERR_INTIALIZATION,
   NETWORK_ERR_INVALID,
   NETWORK_ERR_UNKNOWN
 } NetworkError;
@@ -33,16 +35,15 @@ typedef enum
 typedef struct
 {
   socket_t socket;
-  ConnectionType connectionType;
   struct sockaddr_in serverAddr;
 } Socket;
 
 int init(ConnectionType connectionType, SocketType socketType);
 void printLastError();
-int startServer(int port, void (*onClientData)(Socket *, const char *, size_t));
+int startServer(int port, int maxClients, void (*onClientData)(Socket *, const char *, size_t));
 int connectToServer(const char *ip, int port, void (*onServerData)(const char *, size_t));
 int sendToAllClients(const char *data, size_t len);
 int sendToServer(const char *data, size_t len);
 int runCallbacks();
-int shutdown();
+int shutdownNetwork();
 #endif

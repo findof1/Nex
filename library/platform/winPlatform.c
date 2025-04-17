@@ -39,7 +39,6 @@ socket_t createSocket(int type, int protocol)
   socket_t sock_fd = socket(AF_INET, type, protocol);
   if (sock_fd == INVALID_SOCKET)
   {
-    printf("Socket creation failed\n");
     WSACleanup();
     return PLATFORM_FAILURE;
   }
@@ -50,7 +49,6 @@ int bindSocket(socket_t socket, const struct sockaddr *addr, socklen_t addrlen)
 {
   if (bind(socket, addr, addrlen) == SOCKET_ERROR)
   {
-    printf("Socket bind failed\n");
     closesocket(socket);
     WSACleanup();
     return PLATFORM_FAILURE;
@@ -62,7 +60,6 @@ int listenSocket(socket_t socket, int maxClients)
 {
   if (listen(socket, maxClients) == SOCKET_ERROR)
   {
-    printf("Listen failed\n");
     closesocket(socket);
     WSACleanup();
     return PLATFORM_FAILURE;
