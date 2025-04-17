@@ -47,4 +47,6 @@ typedef struct
 
 extern NetworkContext networkContext;
 
+void removeClient(int i); // WARNING: DO NOT CALL ON CLIENT THREADS, trust me bro
+
 #endif

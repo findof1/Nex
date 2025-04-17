@@ -35,7 +35,7 @@ typedef enum
 typedef struct
 {
   socket_t socket;
-  struct sockaddr_in serverAddr;
+  struct sockaddr_in addr;
 } Socket;
 
 int init(ConnectionType connectionType, SocketType socketType);

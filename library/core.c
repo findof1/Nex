@@ -82,8 +82,8 @@ int startServer(int port, int maxClients, void (*onClientData)(Socket *, const c
     return NETWORK_ERR_SOCKET;
   }
 
-  networkContext.socket.serverAddr = createSockaddrIn(8080, "0.0.0.0");
-  if (bindSocket(networkContext.socket.socket, (struct sockaddr *)&networkContext.socket.serverAddr, sizeof(networkContext.socket.serverAddr)) == PLATFORM_FAILURE)
+  networkContext.socket.addr = createSockaddrIn(8080, "0.0.0.0");
+  if (bindSocket(networkContext.socket.socket, (struct sockaddr *)&networkContext.socket.addr, sizeof(networkContext.socket.addr)) == PLATFORM_FAILURE)
   {
     strncpy(networkContext.lastError, "Socket bind failed\n", sizeof(networkContext.lastError) - 1);
     networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
@@ -109,6 +109,59 @@ int startServer(int port, int maxClients, void (*onClientData)(Socket *, const c
 
 static int serverAcceptLoop()
 {
+  while (true)
+  {
+    pthread_mutex_lock(&networkContext.lock);
+
+    if (networkContext.server.numClients >= networkContext.server.maxClients)
+    {
+      strncpy(networkContext.lastError, "Max clients reached\n", sizeof(networkContext.lastError) - 1);
+      networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+      pthread_mutex_unlock(&networkContext.lock);
+      continue;
+    }
+
+    int clientIndex = networkContext.server.numClients;
+
+    pthread_mutex_unlock(&networkContext.lock);
+
+    struct sockaddr_in clientAddr;
+    socklen_t addrLen = sizeof(clientAddr);
+    Socket clientSocket;
+    clientSocket.socket = acceptSocket(networkContext.socket.socket, (struct sockaddr *)&clientAddr, &addrLen);
+    if (clientSocket.socket < 0)
+    {
+      strncpy(networkContext.lastError, "Client accept failed\n", sizeof(networkContext.lastError) - 1);
+      networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+      continue;
+    }
+
+    pthread_mutex_lock(&networkContext.lock);
+
+    ServerClient *client = &networkContext.server.clients[clientIndex];
+    client->socket = clientSocket;
+    client->active = true;
+    client->id = clientIndex;
+
+    pthread_t thread;
+    int result = pthread_create(&thread, NULL, networkContext.callback.onClientData, client);
+    networkContext.server.clientThreads[clientIndex] = thread;
+
+    if (result != 0)
+    {
+      strncpy(networkContext.lastError, "Failed to create thread\n", sizeof(networkContext.lastError) - 1);
+      networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+      closeSocket(client->socket.socket);
+      client->active = false;
+      removeClient(clientIndex);
+    }
+    else
+    {
+      pthread_detach(thread);
+      networkContext.server.numClients++;
+    }
+    pthread_mutex_unlock(&networkContext.lock);
+  }
 }
 
 void printLastError()
