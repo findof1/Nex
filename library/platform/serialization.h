@@ -3,11 +3,14 @@
 #include "platform.h"
 #include "cJSON.h"
 
-#define TYPE_INT 1
-#define TYPE_FLOAT 2
-#define TYPE_STRING 3
-#define TYPE_JSON 4
-
+typedef enum
+{
+  TYPE_INT = 1,
+  TYPE_FLOAT = 2,
+  TYPE_STRING = 3,
+  TYPE_JSON = 4,
+  TYPE_CLIENT_ACCEPTED = 5
+} NetworkedType;
 int sendInt(socket_t socket, int value);
 int recvInt(socket_t socket, int *out);
 
@@ -19,3 +22,18 @@ int recvString(socket_t socket, char **out);
 
 int sendJSON(socket_t socket, const cJSON *json);
 int recvJSON(socket_t socket, cJSON **json);
+
+typedef struct
+{
+  NetworkedType type;
+  union
+  {
+    int i;
+    float f;
+    char *s;
+    cJSON *json;
+  } data;
+} RecvData;
+
+int recvAny(socket_t socket, RecvData *data);
+void freeRecvData(RecvData *data);

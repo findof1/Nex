@@ -25,9 +25,10 @@ int recvInt(socket_t socket, int *out)
   uint8_t type;
   uint32_t size, netValue;
 
-  if (recvData(socket, &type, 1, 0) == PLATFORM_FAILURE)
+  int result = recvData(socket, &type, 1, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    return PLATFORM_FAILURE;
+    return result;
   }
 
   if (type != TYPE_INT)
@@ -35,9 +36,10 @@ int recvInt(socket_t socket, int *out)
     return PLATFORM_FAILURE;
   }
 
-  if (recvData(socket, &size, 4, 0) == PLATFORM_FAILURE)
+  result = recvData(socket, &size, 4, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    return PLATFORM_FAILURE;
+    return result;
   }
 
   if (ntohl(size) != sizeof(uint32_t))
@@ -45,9 +47,10 @@ int recvInt(socket_t socket, int *out)
     return PLATFORM_FAILURE;
   }
 
-  if (recvData(socket, &netValue, 4, 0) == PLATFORM_FAILURE)
+  result = recvData(socket, &netValue, 4, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    return PLATFORM_FAILURE;
+    return result;
   }
 
   *out = ntohl(netValue);
@@ -83,9 +86,10 @@ int recvFloat(socket_t socket, float *out)
   uint8_t type;
   uint32_t size, netValue;
 
-  if (recvData(socket, &type, 1, 0) == PLATFORM_FAILURE)
+  int result = recvData(socket, &type, 1, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    return PLATFORM_FAILURE;
+    return result;
   }
 
   if (type != TYPE_FLOAT)
@@ -93,9 +97,10 @@ int recvFloat(socket_t socket, float *out)
     return PLATFORM_FAILURE;
   }
 
-  if (recvData(socket, &size, 4, 0) == PLATFORM_FAILURE)
+  result = recvData(socket, &size, 4, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    return PLATFORM_FAILURE;
+    return result;
   }
 
   if (ntohl(size) != sizeof(float))
@@ -103,10 +108,12 @@ int recvFloat(socket_t socket, float *out)
     return PLATFORM_FAILURE;
   }
 
-  if (recvData(socket, &netValue, 4, 0) == PLATFORM_FAILURE)
+  result = recvData(socket, &netValue, 4, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    return PLATFORM_FAILURE;
+    return result;
   }
+
   netValue = ntohl(netValue);
   float number;
   memcpy(out, &netValue, sizeof(uint32_t));
@@ -142,37 +149,36 @@ int recvString(socket_t socket, char **out)
   uint32_t size;
   char *str;
 
-  if (recvData(socket, &type, 1, 0) == PLATFORM_FAILURE)
+  int result = recvData(socket, &type, 1, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    printf("recvString: Failed to receive type byte\n");
-    return PLATFORM_FAILURE;
+    return result;
   }
 
   if (type != TYPE_STRING)
   {
-    printf("recvString: Expected TYPE_STRING (%d), but got %d\n", TYPE_STRING, type);
     return PLATFORM_FAILURE;
   }
 
-  if (recvData(socket, &size, 4, 0) == PLATFORM_FAILURE)
+  result = recvData(socket, &size, 4, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    printf("recvString: Failed to receive string size\n");
-    return PLATFORM_FAILURE;
+    return result;
   }
+
   size = ntohl(size);
 
   char *buf = (char *)malloc(size + 1);
   if (buf == NULL)
   {
-    printf("recvString: Memory allocation failed for size %u\n", size);
     return PLATFORM_FAILURE;
   }
 
-  if (recvAll(socket, buf, size, 0) == PLATFORM_FAILURE)
+  result = recvAll(socket, buf, size, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    printf("recvString: Failed to receive string data of size %u\n", size);
     free(buf);
-    return PLATFORM_FAILURE;
+    return result;
   }
 
   (buf)[size] = '\0';
@@ -208,9 +214,10 @@ int recvJSON(socket_t socket, cJSON **json)
   uint32_t size;
   char *str;
 
-  if (recvData(socket, &type, 1, 0) == PLATFORM_FAILURE)
+  int result = recvData(socket, &type, 1, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    return PLATFORM_FAILURE;
+    return result;
   }
 
   if (type != TYPE_JSON)
@@ -218,9 +225,10 @@ int recvJSON(socket_t socket, cJSON **json)
     return PLATFORM_FAILURE;
   }
 
-  if (recvData(socket, &size, 4, 0) == PLATFORM_FAILURE)
+  result = recvData(socket, &size, 4, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
-    return PLATFORM_FAILURE;
+    return result;
   }
   size = ntohl(size);
 
@@ -230,10 +238,11 @@ int recvJSON(socket_t socket, cJSON **json)
     return PLATFORM_FAILURE;
   }
 
-  if (recvAll(socket, buf, size, 0) == PLATFORM_FAILURE)
+  result = recvAll(socket, buf, size, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
     free(buf);
-    return PLATFORM_FAILURE;
+    return result;
   }
 
   (buf)[size] = '\0';
@@ -246,4 +255,144 @@ int recvJSON(socket_t socket, cJSON **json)
   }
 
   return PLATFORM_SUCCESS;
+}
+
+int recvAny(socket_t socket, RecvData *data)
+{
+
+  int result = recvData(socket, &data->type, 1, 0);
+  if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
+  {
+    return result;
+  }
+
+  if (data->type == TYPE_INT)
+  {
+    uint32_t size, netValue;
+
+    result = recvData(socket, &size, 4, 0);
+    if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
+    {
+      return result;
+    }
+
+    if (ntohl(size) != sizeof(uint32_t))
+    {
+      return PLATFORM_FAILURE;
+    }
+
+    result = recvData(socket, &netValue, 4, 0);
+    if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
+    {
+      return result;
+    }
+
+    data->data.i = ntohl(netValue);
+    return PLATFORM_SUCCESS;
+  }
+
+  if (data->type == TYPE_FLOAT)
+  {
+    uint32_t size, netValue;
+
+    result = recvData(socket, &size, 4, 0);
+    if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
+    {
+      return result;
+    }
+
+    if (ntohl(size) != sizeof(float))
+    {
+      return PLATFORM_FAILURE;
+    }
+
+    result = recvData(socket, &netValue, 4, 0);
+    if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
+    {
+      return result;
+    }
+    netValue = ntohl(netValue);
+    memcpy(&data->data.f, &netValue, sizeof(uint32_t));
+    return PLATFORM_SUCCESS;
+  }
+
+  if (data->type == TYPE_STRING)
+  {
+    uint32_t size;
+
+    result = recvData(socket, &size, 4, 0);
+    if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
+    {
+      return result;
+    }
+    size = ntohl(size);
+
+    char *buf = (char *)malloc(size + 1);
+    if (buf == NULL)
+    {
+      return PLATFORM_FAILURE;
+    }
+
+    result = recvAll(socket, buf, size, 0);
+    if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
+    {
+      free(buf);
+      return result;
+    }
+
+    (buf)[size] = '\0';
+    data->data.s = buf;
+    return PLATFORM_SUCCESS;
+  }
+
+  if (data->type == TYPE_JSON)
+  {
+    uint32_t size;
+
+    result = recvData(socket, &size, 4, 0);
+    if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
+    {
+      return result;
+    }
+    size = ntohl(size);
+
+    char *buf = (char *)malloc(size + 1);
+    if (buf == NULL)
+    {
+      return PLATFORM_FAILURE;
+    }
+
+    result = recvAll(socket, buf, size, 0);
+    if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
+    {
+      free(buf);
+      return result;
+    }
+
+    (buf)[size] = '\0';
+    data->data.json = cJSON_Parse(buf);
+    free(buf);
+
+    if (data->data.json == NULL)
+    {
+      return PLATFORM_FAILURE;
+    }
+  }
+
+  return PLATFORM_FAILURE;
+}
+
+void freeRecvData(RecvData *data)
+{
+  switch (data->type)
+  {
+  case TYPE_STRING:
+    free(data->data.s);
+    break;
+  case TYPE_JSON:
+    cJSON_Delete(data->data.json);
+    break;
+  default:
+    break;
+  }
 }

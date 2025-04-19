@@ -49,7 +49,7 @@ int init(ConnectionType connectionType, SocketType socketType)
   return NETWORK_OK;
 }
 
-int startServer(int port, int maxClients, void (*onClientData)(Data))
+int startServer(int port, int maxClients, void (*onClientData)(RecvData))
 {
   if (maxClients <= 0 || onClientData == NULL)
   {
@@ -178,6 +178,11 @@ static void *serverAcceptLoop(void *arg)
 
 static void *clientDataLoop(void *arg)
 {
+
+  RecvData clientAcceptedData;
+  clientAcceptedData.type = TYPE_CLIENT_ACCEPTED;
+  networkContext.callback.onClientData(clientAcceptedData);
+
   ClientThreadArgs *args = (ClientThreadArgs *)arg;
   ServerClient *client = args->client;
   int clientIndex = args->clientIndex;
@@ -186,27 +191,21 @@ static void *clientDataLoop(void *arg)
   {
     pthread_mutex_lock(&networkContext.lock);
     char buffer[1000];
-    int bytesReceived = recvData(client->socket.socket, buffer, sizeof(buffer) - 1, 0);
-    if (bytesReceived > 0)
+    RecvData data;
+
+    int bytesReceived = recvAny(client->socket.socket, &data);
+
+    if (bytesReceived == PLATFORM_SUCCESS)
     {
-      buffer[bytesReceived] = '\0';
-      Data data;
-      data.data = strdup(buffer);
       networkContext.callback.onClientData(data);
-      free(data.data);
+      freeRecvData(&data);
     }
-    else if (bytesReceived == 0)
+    else if (bytesReceived == PLATFORM_CONNECTION_CLOSED)
     {
       pthread_mutex_unlock(&networkContext.lock);
       break;
     }
-    else
-    {
-      strncpy(networkContext.lastError, "Recv failed from client\n", sizeof(networkContext.lastError) - 1);
-      networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
-      pthread_mutex_unlock(&networkContext.lock);
-      break;
-    }
+
     pthread_mutex_unlock(&networkContext.lock);
   }
 
