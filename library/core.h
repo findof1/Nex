@@ -38,9 +38,14 @@ typedef struct
   struct sockaddr_in addr;
 } Socket;
 
+typedef struct
+{
+  char *data; // char* is placeholder for now
+} Data;
+
 int init(ConnectionType connectionType, SocketType socketType);
 void printLastError();
-int startServer(int port, int maxClients, void (*onClientData)(Socket *, const char *, size_t));
+int startServer(int port, int maxClients, void (*onClientData)(Data));
 int connectToServer(const char *ip, int port, void (*onServerData)(const char *, size_t));
 int sendToAllClients(const char *data, size_t len);
 int sendToServer(const char *data, size_t len);

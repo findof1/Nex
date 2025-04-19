@@ -117,10 +117,10 @@ int recvData(socket_t socket, void *buf, size_t len, int flags)
     return PLATFORM_FAILURE;
   }
 
-  if (bytesReceived == PLATFORM_CONNECTION_CLOSED)
+  if (bytesReceived == 0)
   {
     printf("Connection closed by client on socket %d\n", socket);
-    return PLATFORM_FAILURE;
+    return PLATFORM_CONNECTION_CLOSED;
   }
 
   return bytesReceived;

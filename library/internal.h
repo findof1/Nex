@@ -18,7 +18,7 @@ typedef struct
 
   union
   {
-    void (*onClientData)(Socket *, const char *, size_t);
+    void (*onClientData)(Data);
     void (*onServerData)(const char *, size_t);
   } callback;
 
