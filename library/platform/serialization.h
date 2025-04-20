@@ -9,7 +9,7 @@ typedef enum
   TYPE_FLOAT = 2,
   TYPE_STRING = 3,
   TYPE_JSON = 4,
-  TYPE_CLIENT_ACCEPTED = 5
+  TYPE_CONNECTED = 5
 } NetworkedType;
 int sendInt(socket_t socket, int value);
 int recvInt(socket_t socket, int *out);

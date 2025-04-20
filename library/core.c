@@ -36,7 +36,6 @@ int init(ConnectionType connectionType, SocketType socketType)
   }
   else if (socketType == Client)
   {
-    networkContext.client.serverSocket.socket = -1;
     networkContext.client.serverThread = 0;
   }
   else
@@ -82,6 +81,7 @@ int startServer(int port, int maxClients, void (*onClientData)(RecvData))
   {
     strncpy(networkContext.lastError, "Socket creation failed\n", sizeof(networkContext.lastError) - 1);
     networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    closeSocket(networkContext.socket.socket);
     return NETWORK_ERR_SOCKET;
   }
 
@@ -90,6 +90,7 @@ int startServer(int port, int maxClients, void (*onClientData)(RecvData))
   {
     strncpy(networkContext.lastError, "Socket bind failed\n", sizeof(networkContext.lastError) - 1);
     networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    closeSocket(networkContext.socket.socket);
     return NETWORK_ERR_BIND;
   }
 
@@ -97,6 +98,7 @@ int startServer(int port, int maxClients, void (*onClientData)(RecvData))
   {
     strncpy(networkContext.lastError, "Listen failed\n", sizeof(networkContext.lastError) - 1);
     networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    closeSocket(networkContext.socket.socket);
     return NETWORK_ERR_LISTEN;
   }
 
@@ -104,6 +106,7 @@ int startServer(int port, int maxClients, void (*onClientData)(RecvData))
   {
     strncpy(networkContext.lastError, "pthread_create acceptLoop failed", sizeof(networkContext.lastError) - 1);
     networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    closeSocket(networkContext.socket.socket);
     return NETWORK_ERR_THREAD;
   }
 
@@ -180,27 +183,25 @@ static void *clientDataLoop(void *arg)
 {
 
   RecvData clientAcceptedData;
-  clientAcceptedData.type = TYPE_CLIENT_ACCEPTED;
+  clientAcceptedData.type = TYPE_CONNECTED;
   networkContext.callback.onClientData(clientAcceptedData);
 
   ClientThreadArgs *args = (ClientThreadArgs *)arg;
   ServerClient *client = args->client;
   int clientIndex = args->clientIndex;
 
-  while (1)
+  while (true)
   {
     pthread_mutex_lock(&networkContext.lock);
-    char buffer[1000];
     RecvData data;
+    int result = recvAny(client->socket.socket, &data);
 
-    int bytesReceived = recvAny(client->socket.socket, &data);
-
-    if (bytesReceived == PLATFORM_SUCCESS)
+    if (result == PLATFORM_SUCCESS)
     {
       networkContext.callback.onClientData(data);
       freeRecvData(&data);
     }
-    else if (bytesReceived == PLATFORM_CONNECTION_CLOSED)
+    else if (result == PLATFORM_CONNECTION_CLOSED)
     {
       pthread_mutex_unlock(&networkContext.lock);
       break;
@@ -214,6 +215,84 @@ static void *clientDataLoop(void *arg)
   closeSocket(client->socket.socket);
   client->active = false;
   removeClient(clientIndex);
+  pthread_mutex_unlock(&networkContext.lock);
+  return NULL;
+}
+
+int connectToServer(const char *ip, int port, void (*onServerData)(RecvData))
+{
+  if (onServerData == NULL)
+  {
+    strncpy(networkContext.lastError, "Invalid onServerData function: int startServer(int port, int maxClients, void (*onClientData)(Socket *, const char *, size_t))", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  if (!networkContext.initialized)
+  {
+    strncpy(networkContext.lastError, "Platform Is Not Initialized!", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  networkContext.callback.onServerData = onServerData;
+
+  networkContext.socket.socket = createSocket(SOCK_STREAM, IPPROTO_TCP);
+  if (networkContext.socket.socket == PLATFORM_FAILURE)
+  {
+    strncpy(networkContext.lastError, "Socket creation failed\n", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_SOCKET;
+  }
+
+  networkContext.socket.addr = createSockaddrIn(port, ip);
+  if (connectSocket(networkContext.socket.socket, (struct sockaddr *)&networkContext.socket.addr, sizeof(networkContext.socket.addr)) == PLATFORM_FAILURE)
+  {
+    strncpy(networkContext.lastError, "Failed to connect to server.\n", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    closeSocket(networkContext.socket.socket);
+    return NETWORK_ERR_CONNECT;
+  }
+
+  if (pthread_create(&networkContext.server.acceptThread, NULL, clientAcceptLoop, NULL) != 0)
+  {
+    strncpy(networkContext.lastError, "pthread_create acceptLoop failed", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    closeSocket(networkContext.socket.socket);
+    return NETWORK_ERR_THREAD;
+  }
+
+  return NETWORK_OK;
+}
+
+static void *clientAcceptLoop(void *arg)
+{
+  RecvData serverConnectedData;
+  serverConnectedData.type = TYPE_CONNECTED;
+  networkContext.callback.onServerData(serverConnectedData);
+
+  while (true)
+  {
+    pthread_mutex_lock(&networkContext.lock);
+    RecvData data;
+    int result = recvAny(networkContext.socket.socket, &data);
+
+    if (result == PLATFORM_SUCCESS)
+    {
+      networkContext.callback.onServerData(data);
+      freeRecvData(&data);
+    }
+    else if (result == PLATFORM_CONNECTION_CLOSED)
+    {
+      pthread_mutex_unlock(&networkContext.lock);
+      break;
+    }
+
+    pthread_mutex_unlock(&networkContext.lock);
+  }
+
+  pthread_mutex_lock(&networkContext.lock);
+  closeSocket(networkContext.socket.socket);
   pthread_mutex_unlock(&networkContext.lock);
   return NULL;
 }

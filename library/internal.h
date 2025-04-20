@@ -19,7 +19,7 @@ typedef struct
   union
   {
     void (*onClientData)(RecvData);
-    void (*onServerData)(const char *, size_t);
+    void (*onServerData)(RecvData);
   } callback;
 
   pthread_mutex_t lock;
@@ -40,7 +40,6 @@ typedef struct
   // client specific fields
   struct
   {
-    Socket serverSocket;
     pthread_t serverThread;
   } client;
 } NetworkContext;

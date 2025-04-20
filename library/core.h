@@ -42,7 +42,7 @@ typedef struct
 int init(ConnectionType connectionType, SocketType socketType);
 void printLastError();
 int startServer(int port, int maxClients, void (*onClientData)(RecvData));
-int connectToServer(const char *ip, int port, void (*onServerData)(const char *, size_t));
+int connectToServer(const char *ip, int port, void (*onServerData)(RecvData));
 int sendToAllClients(const char *data, size_t len);
 int sendToServer(const char *data, size_t len);
 int runCallbacks();
