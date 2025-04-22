@@ -3,6 +3,7 @@
 
 static void *serverAcceptLoop(void *arg);
 static void *clientDataLoop(void *arg);
+static void *clientAcceptLoop(void *arg);
 
 int init(ConnectionType connectionType, SocketType socketType)
 {
@@ -109,6 +110,10 @@ int startServer(int port, int maxClients, void (*onClientData)(RecvData))
     closeSocket(networkContext.socket.socket);
     return NETWORK_ERR_THREAD;
   }
+  else
+  {
+    pthread_detach(networkContext.server.acceptThread);
+  }
 
   return NETWORK_OK;
 }
@@ -123,6 +128,7 @@ static void *serverAcceptLoop(void *arg)
 {
   while (true)
   {
+
     pthread_mutex_lock(&networkContext.lock);
 
     if (networkContext.server.numClients >= networkContext.server.maxClients)
@@ -181,7 +187,6 @@ static void *serverAcceptLoop(void *arg)
 
 static void *clientDataLoop(void *arg)
 {
-
   RecvData clientAcceptedData;
   clientAcceptedData.type = TYPE_CONNECTED;
   networkContext.callback.onClientData(clientAcceptedData);
@@ -192,9 +197,9 @@ static void *clientDataLoop(void *arg)
 
   while (true)
   {
-    pthread_mutex_lock(&networkContext.lock);
     RecvData data;
     int result = recvAny(client->socket.socket, &data);
+    pthread_mutex_lock(&networkContext.lock);
 
     if (result == PLATFORM_SUCCESS)
     {
@@ -254,12 +259,16 @@ int connectToServer(const char *ip, int port, void (*onServerData)(RecvData))
     return NETWORK_ERR_CONNECT;
   }
 
-  if (pthread_create(&networkContext.server.acceptThread, NULL, clientAcceptLoop, NULL) != 0)
+  if (pthread_create(&networkContext.client.serverThread, NULL, clientAcceptLoop, NULL) != 0)
   {
     strncpy(networkContext.lastError, "pthread_create acceptLoop failed", sizeof(networkContext.lastError) - 1);
     networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
     closeSocket(networkContext.socket.socket);
     return NETWORK_ERR_THREAD;
+  }
+  else
+  {
+    pthread_detach(networkContext.client.serverThread);
   }
 
   return NETWORK_OK;
@@ -273,9 +282,9 @@ static void *clientAcceptLoop(void *arg)
 
   while (true)
   {
-    pthread_mutex_lock(&networkContext.lock);
     RecvData data;
     int result = recvAny(networkContext.socket.socket, &data);
+    pthread_mutex_lock(&networkContext.lock);
 
     if (result == PLATFORM_SUCCESS)
     {

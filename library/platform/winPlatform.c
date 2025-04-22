@@ -113,6 +113,13 @@ int recvData(socket_t socket, void *buf, size_t len, int flags)
   int bytesReceived = recv(socket, buf, len, flags);
   if (bytesReceived == SOCKET_ERROR)
   {
+    int err = WSAGetLastError();
+
+    if (err == WSAECONNRESET)
+    {
+      return PLATFORM_CONNECTION_CLOSED;
+    }
+
     printf("Receive failed from socket %d. Error: %d\n", socket, WSAGetLastError());
     return PLATFORM_FAILURE;
   }

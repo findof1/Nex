@@ -8,7 +8,7 @@ void handleClientData(RecvData data)
 {
   switch (data.type)
   {
-  case TYPE_CLIENT_ACCEPTED:
+  case TYPE_CONNECTED:
     printf("Client accepted!\n");
     break;
   case TYPE_INT:
