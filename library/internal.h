@@ -6,8 +6,8 @@
 typedef struct
 {
   Socket socket;
-  bool active;
   int id;
+  bool isClosed;
 } ServerClient;
 
 typedef struct
@@ -41,11 +41,13 @@ typedef struct
   struct
   {
     pthread_t serverThread;
+    bool running;
   } client;
 } NetworkContext;
 
 extern NetworkContext networkContext;
 
-void removeClient(int i); // WARNING: DO NOT CALL ON CLIENT THREADS, trust me bro
+void removeClient(int i);
+void removeAllClients();
 
 #endif

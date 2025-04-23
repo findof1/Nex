@@ -45,6 +45,5 @@ int startServer(int port, int maxClients, void (*onClientData)(RecvData));
 int connectToServer(const char *ip, int port, void (*onServerData)(RecvData));
 int sendToAllClients(const char *data, size_t len);
 int sendToServer(const char *data, size_t len);
-int runCallbacks();
 int shutdownNetwork();
 #endif

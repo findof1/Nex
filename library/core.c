@@ -110,10 +110,9 @@ int startServer(int port, int maxClients, void (*onClientData)(RecvData))
     closeSocket(networkContext.socket.socket);
     return NETWORK_ERR_THREAD;
   }
-  else
-  {
-    pthread_detach(networkContext.server.acceptThread);
-  }
+
+  pthread_detach(networkContext.server.acceptThread);
+  networkContext.server.listening = true;
 
   return NETWORK_OK;
 }
@@ -126,7 +125,7 @@ typedef struct
 
 static void *serverAcceptLoop(void *arg)
 {
-  while (true)
+  while (networkContext.server.listening)
   {
 
     pthread_mutex_lock(&networkContext.lock);
@@ -147,18 +146,22 @@ static void *serverAcceptLoop(void *arg)
     socklen_t addrLen = sizeof(clientAddr);
     Socket clientSocket;
     clientSocket.socket = acceptSocket(networkContext.socket.socket, (struct sockaddr *)&clientAddr, &addrLen);
-    if (clientSocket.socket < 0)
+    if (clientSocket.socket < 0 && networkContext.server.listening)
     {
       strncpy(networkContext.lastError, "Client accept failed\n", sizeof(networkContext.lastError) - 1);
       networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
       continue;
     }
 
+    if (!networkContext.server.listening)
+    {
+      break;
+    }
+
     pthread_mutex_lock(&networkContext.lock);
 
     ServerClient *client = &networkContext.server.clients[clientIndex];
     client->socket = clientSocket;
-    client->active = true;
     client->id = clientIndex;
 
     pthread_t thread;
@@ -173,8 +176,8 @@ static void *serverAcceptLoop(void *arg)
       strncpy(networkContext.lastError, "Failed to create thread\n", sizeof(networkContext.lastError) - 1);
       networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
       closeSocket(client->socket.socket);
-      client->active = false;
       removeClient(clientIndex);
+      free(args);
     }
     else
     {
@@ -195,7 +198,7 @@ static void *clientDataLoop(void *arg)
   ServerClient *client = args->client;
   int clientIndex = args->clientIndex;
 
-  while (true)
+  while (networkContext.server.listening)
   {
     RecvData data;
     int result = recvAny(client->socket.socket, &data);
@@ -203,6 +206,7 @@ static void *clientDataLoop(void *arg)
 
     if (result == PLATFORM_SUCCESS)
     {
+      pthread_mutex_unlock(&networkContext.lock);
       networkContext.callback.onClientData(data);
       freeRecvData(&data);
     }
@@ -211,16 +215,21 @@ static void *clientDataLoop(void *arg)
       pthread_mutex_unlock(&networkContext.lock);
       break;
     }
-
-    pthread_mutex_unlock(&networkContext.lock);
+    else
+    {
+      pthread_mutex_unlock(&networkContext.lock);
+    }
   }
 
+  clientAcceptedData.type = TYPE_DISCONNECTED;
+  networkContext.callback.onClientData(clientAcceptedData);
+
   pthread_mutex_lock(&networkContext.lock);
+
   free(args);
-  closeSocket(client->socket.socket);
-  client->active = false;
-  removeClient(clientIndex);
   pthread_mutex_unlock(&networkContext.lock);
+
+  removeClient(clientIndex);
   return NULL;
 }
 
@@ -270,6 +279,7 @@ int connectToServer(const char *ip, int port, void (*onServerData)(RecvData))
   {
     pthread_detach(networkContext.client.serverThread);
   }
+  networkContext.client.running = true;
 
   return NETWORK_OK;
 }
@@ -280,7 +290,7 @@ static void *clientAcceptLoop(void *arg)
   serverConnectedData.type = TYPE_CONNECTED;
   networkContext.callback.onServerData(serverConnectedData);
 
-  while (true)
+  while (networkContext.client.running)
   {
     RecvData data;
     int result = recvAny(networkContext.socket.socket, &data);
@@ -291,19 +301,34 @@ static void *clientAcceptLoop(void *arg)
       networkContext.callback.onServerData(data);
       freeRecvData(&data);
     }
-    else if (result == PLATFORM_CONNECTION_CLOSED)
+    else if (result == PLATFORM_CONNECTION_CLOSED && networkContext.client.running)
     {
-      pthread_mutex_unlock(&networkContext.lock);
-      break;
+      networkContext.client.running = false;
+      closeSocket(networkContext.socket.socket);
     }
 
     pthread_mutex_unlock(&networkContext.lock);
   }
 
-  pthread_mutex_lock(&networkContext.lock);
-  closeSocket(networkContext.socket.socket);
-  pthread_mutex_unlock(&networkContext.lock);
+  serverConnectedData.type = TYPE_DISCONNECTED;
+  networkContext.callback.onServerData(serverConnectedData);
   return NULL;
+}
+
+int shutdownNetwork()
+{
+  if (networkContext.socketType == Server)
+  {
+    networkContext.server.listening = false;
+    removeAllClients();
+    closeSocket(networkContext.socket.socket);
+  }
+
+  if (networkContext.socketType == Client)
+  {
+    networkContext.client.running = false;
+    closeSocket(networkContext.socket.socket);
+  }
 }
 
 void printLastError()

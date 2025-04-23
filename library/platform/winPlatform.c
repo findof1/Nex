@@ -72,7 +72,6 @@ socket_t acceptSocket(socket_t socket, struct sockaddr *addr, socklen_t *addrlen
   socket_t clientSocket = accept(socket, addr, addrlen);
   if (clientSocket == INVALID_SOCKET)
   {
-    printf("Accept failed\n");
     return PLATFORM_FAILURE;
   }
   return clientSocket;
@@ -115,7 +114,7 @@ int recvData(socket_t socket, void *buf, size_t len, int flags)
   {
     int err = WSAGetLastError();
 
-    if (err == WSAECONNRESET)
+    if (err == WSAECONNRESET || err == WSAECONNABORTED)
     {
       return PLATFORM_CONNECTION_CLOSED;
     }
@@ -180,6 +179,11 @@ void shutdownBoth(socket_t socket)
 
 int closeSocket(socket_t socket)
 {
+  if (socket == INVALID_SOCKET)
+  {
+    return PLATFORM_SUCCESS;
+  }
+
   if (closesocket(socket) == SOCKET_ERROR)
   {
     printf("Socket closure failed. Error: %d\n", WSAGetLastError());

@@ -11,6 +11,9 @@ void handleClientData(RecvData data)
   case TYPE_CONNECTED:
     printf("Client accepted!\n");
     break;
+  case TYPE_DISCONNECTED:
+    printf("Client disconnected.\n");
+    break;
   case TYPE_INT:
     printf("Received int: %d\n", data.data.i);
     break;
@@ -60,7 +63,7 @@ int main()
   startServer(8080, 5, handleClientData);
 
   getchar();
-
-  platformCleanup();
+  shutdownNetwork();
+  getchar();
   return 0;
 }
