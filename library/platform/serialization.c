@@ -257,7 +257,7 @@ int recvJSON(socket_t socket, cJSON **json)
   return PLATFORM_SUCCESS;
 }
 
-int recvAny(socket_t socket, RecvData *data)
+int recvAny(socket_t socket, Data *data)
 {
 
   int result = recvData(socket, &data->type, 1, 0);
@@ -377,12 +377,13 @@ int recvAny(socket_t socket, RecvData *data)
     {
       return PLATFORM_FAILURE;
     }
+    return PLATFORM_SUCCESS;
   }
 
   return PLATFORM_FAILURE;
 }
 
-void freeRecvData(RecvData *data)
+void freeRecvData(Data *data)
 {
   switch (data->type)
   {

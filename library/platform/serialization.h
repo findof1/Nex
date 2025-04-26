@@ -34,7 +34,7 @@ typedef struct
     char *s;
     cJSON *json;
   } data;
-} RecvData;
+} Data;
 
-int recvAny(socket_t socket, RecvData *data);
-void freeRecvData(RecvData *data);
+int recvAny(socket_t socket, Data *data);
+void freeRecvData(Data *data);

@@ -114,7 +114,7 @@ int recvData(socket_t socket, void *buf, size_t len, int flags)
   {
     int err = WSAGetLastError();
 
-    if (err == WSAECONNRESET || err == WSAECONNABORTED)
+    if (err == WSAECONNRESET || err == WSAECONNABORTED || err == WSAENOTSOCK)
     {
       return PLATFORM_CONNECTION_CLOSED;
     }

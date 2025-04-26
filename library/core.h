@@ -41,9 +41,11 @@ typedef struct
 
 int init(ConnectionType connectionType, SocketType socketType);
 void printLastError();
-int startServer(int port, int maxClients, void (*onClientData)(RecvData));
-int connectToServer(const char *ip, int port, void (*onServerData)(RecvData));
-int sendToAllClients(const char *data, size_t len);
-int sendToServer(const char *data, size_t len);
+int startServer(int port, int maxClients, void (*onClientData)(Data, socket_t));
+int connectToServer(const char *ip, int port, void (*onServerData)(Data));
+int sendToAllClients(Data data);
+int broadcastToClients(Data data, socket_t sender);
+int sendToClient(Data data, socket_t client);
+int sendToServer(Data data);
 int shutdownNetwork();
 #endif

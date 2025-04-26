@@ -27,7 +27,6 @@ void removeClient(int i)
   {
     networkContext.server.clients[j] = networkContext.server.clients[j + 1];
     networkContext.server.clientThreads[j] = networkContext.server.clientThreads[j + 1];
-    networkContext.server.clients[j].id = j;
   }
 
   int last = networkContext.server.numClients - 1;

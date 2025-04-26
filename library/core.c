@@ -49,7 +49,7 @@ int init(ConnectionType connectionType, SocketType socketType)
   return NETWORK_OK;
 }
 
-int startServer(int port, int maxClients, void (*onClientData)(RecvData))
+int startServer(int port, int maxClients, void (*onClientData)(Data, socket_t))
 {
   if (maxClients <= 0 || onClientData == NULL)
   {
@@ -162,7 +162,6 @@ static void *serverAcceptLoop(void *arg)
 
     ServerClient *client = &networkContext.server.clients[clientIndex];
     client->socket = clientSocket;
-    client->id = clientIndex;
 
     pthread_t thread;
     ClientThreadArgs *args = malloc(sizeof(ClientThreadArgs));
@@ -190,24 +189,25 @@ static void *serverAcceptLoop(void *arg)
 
 static void *clientDataLoop(void *arg)
 {
-  RecvData clientAcceptedData;
-  clientAcceptedData.type = TYPE_CONNECTED;
-  networkContext.callback.onClientData(clientAcceptedData);
-
   ClientThreadArgs *args = (ClientThreadArgs *)arg;
   ServerClient *client = args->client;
   int clientIndex = args->clientIndex;
 
+  Data clientAcceptedData;
+  clientAcceptedData.type = TYPE_CONNECTED;
+  networkContext.callback.onClientData(clientAcceptedData, args->client->socket.socket);
+
   while (networkContext.server.listening)
   {
-    RecvData data;
+    Data data;
+
     int result = recvAny(client->socket.socket, &data);
     pthread_mutex_lock(&networkContext.lock);
 
     if (result == PLATFORM_SUCCESS)
     {
       pthread_mutex_unlock(&networkContext.lock);
-      networkContext.callback.onClientData(data);
+      networkContext.callback.onClientData(data, args->client->socket.socket);
       freeRecvData(&data);
     }
     else if (result == PLATFORM_CONNECTION_CLOSED)
@@ -221,19 +221,20 @@ static void *clientDataLoop(void *arg)
     }
   }
 
-  clientAcceptedData.type = TYPE_DISCONNECTED;
-  networkContext.callback.onClientData(clientAcceptedData);
-
   pthread_mutex_lock(&networkContext.lock);
 
   free(args);
   pthread_mutex_unlock(&networkContext.lock);
 
   removeClient(clientIndex);
+
+  clientAcceptedData.type = TYPE_DISCONNECTED;
+  networkContext.callback.onClientData(clientAcceptedData, -1);
+
   return NULL;
 }
 
-int connectToServer(const char *ip, int port, void (*onServerData)(RecvData))
+int connectToServer(const char *ip, int port, void (*onServerData)(Data))
 {
   if (onServerData == NULL)
   {
@@ -286,13 +287,13 @@ int connectToServer(const char *ip, int port, void (*onServerData)(RecvData))
 
 static void *clientAcceptLoop(void *arg)
 {
-  RecvData serverConnectedData;
+  Data serverConnectedData;
   serverConnectedData.type = TYPE_CONNECTED;
   networkContext.callback.onServerData(serverConnectedData);
 
   while (networkContext.client.running)
   {
-    RecvData data;
+    Data data;
     int result = recvAny(networkContext.socket.socket, &data);
     pthread_mutex_lock(&networkContext.lock);
 
@@ -315,6 +316,111 @@ static void *clientAcceptLoop(void *arg)
   return NULL;
 }
 
+int sendToAllClients(Data data)
+{
+  int result = NETWORK_OK;
+  for (int i = 0; i < networkContext.server.numClients; i++)
+  {
+    int currentResult = sendToClient(data, networkContext.server.clients[i].socket.socket);
+    if (currentResult != NETWORK_OK)
+    {
+      strncpy(networkContext.lastError, "Sending to all clients failed!", sizeof(networkContext.lastError) - 1);
+      networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+      result = currentResult;
+    }
+  }
+  return result;
+}
+
+int broadcastToClients(Data data, socket_t sender)
+{
+  int result = NETWORK_OK;
+  for (int i = 0; i < networkContext.server.numClients; i++)
+  {
+    if (networkContext.server.clients[i].socket.socket == sender)
+    {
+      continue;
+    }
+
+    int currentResult = sendToClient(data, networkContext.server.clients[i].socket.socket);
+    if (currentResult != NETWORK_OK)
+    {
+      strncpy(networkContext.lastError, "Broadcasting to clients failed!", sizeof(networkContext.lastError) - 1);
+      networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+      result = currentResult;
+    }
+  }
+  return result;
+}
+
+int sendToClient(Data data, socket_t client)
+{
+  int result = 0;
+  switch (data.type)
+  {
+  case TYPE_INT:
+    result = sendInt(client, data.data.i);
+    break;
+  case TYPE_FLOAT:
+    result = sendFloat(client, data.data.f);
+    break;
+  case TYPE_STRING:
+    result = sendString(client, data.data.s);
+    break;
+  case TYPE_JSON:
+    result = sendJSON(client, data.data.json);
+    break;
+  }
+
+  if (result == PLATFORM_FAILURE)
+  {
+    strncpy(networkContext.lastError, "Failed to send data to client", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_SEND;
+  }
+  if (result == 0)
+  {
+    strncpy(networkContext.lastError, "Invalid data type passed into sendToClient()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+  return NETWORK_OK;
+}
+
+int sendToServer(Data data)
+{
+  int result = 0;
+  switch (data.type)
+  {
+  case TYPE_INT:
+    result = sendInt(networkContext.socket.socket, data.data.i);
+    break;
+  case TYPE_FLOAT:
+    result = sendFloat(networkContext.socket.socket, data.data.f);
+    break;
+  case TYPE_STRING:
+    result = sendString(networkContext.socket.socket, data.data.s);
+    break;
+  case TYPE_JSON:
+    result = sendJSON(networkContext.socket.socket, data.data.json);
+    break;
+  }
+
+  if (result == PLATFORM_FAILURE)
+  {
+    strncpy(networkContext.lastError, "Failed to send data to server", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_SEND;
+  }
+  if (result == 0)
+  {
+    strncpy(networkContext.lastError, "Invalid data type passed into sendToServer()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+  return NETWORK_OK;
+}
+
 int shutdownNetwork()
 {
   if (networkContext.socketType == Server)
@@ -329,6 +435,7 @@ int shutdownNetwork()
     networkContext.client.running = false;
     closeSocket(networkContext.socket.socket);
   }
+  return NETWORK_OK;
 }
 
 void printLastError()

@@ -6,7 +6,6 @@
 typedef struct
 {
   Socket socket;
-  int id;
   bool isClosed;
 } ServerClient;
 
@@ -18,8 +17,8 @@ typedef struct
 
   union
   {
-    void (*onClientData)(RecvData);
-    void (*onServerData)(RecvData);
+    void (*onClientData)(Data, socket_t);
+    void (*onServerData)(Data);
   } callback;
 
   pthread_mutex_t lock;
