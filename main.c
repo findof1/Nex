@@ -4,77 +4,93 @@
 #include <assert.h>
 #include "core.h"
 
+typedef struct
+{
+  int messageCount;
+} ClientInfo;
+
 void handleClientData(Data data, socket_t sender)
 {
-  Data sentData;
   switch (data.type)
   {
   case TYPE_CONNECTED:
-    sentData.type = TYPE_STRING;
-    sentData.data.s = "New Client Connected!";
-    printf("Client accepted!\n");
-    sendToAllClients(sentData);
-    break;
-  case TYPE_DISCONNECTED:
-    sentData.type = TYPE_STRING;
-    sentData.data.s = "Client diconnected!";
-    printf("Client disconnected.\n");
-    broadcastToClients(sentData, sender);
-    break;
-  case TYPE_INT:
-    printf("Received int: %d\n", data.data.i);
-    sendToClient(data, sender);
-    break;
-  case TYPE_FLOAT:
-    printf("Received float: %f\n", data.data.f);
-    sendToClient(data, sender);
-    break;
-  case TYPE_STRING:
-    if (data.data.s)
-    {
-      printf("Received string: %s\n", data.data.s);
-      sendToClient(data, sender);
-    }
-    else
-      printf("Received string: (null)\n");
-    break;
-  case TYPE_JSON:
   {
-    if (data.data.json)
+    ClientInfo *info = malloc(sizeof(ClientInfo));
+    if (!info)
     {
-      char *json_text = cJSON_Print(data.data.json);
-      if (json_text)
-      {
-        printf("Received JSON: %s\n", json_text);
-        sendToClient(data, sender);
-        free(json_text);
-      }
-      else
-      {
-        printf("Received JSON, but failed to print it\n");
-      }
+      fprintf(stderr, "Failed to allocate ClientInfo\n");
+      return;
+    }
+    info->messageCount = 0;
+
+    if (setClientContext(info, sender, free) != 0)
+    {
+      fprintf(stderr, "Failed to set client context\n");
+      free(info);
     }
     else
     {
-      printf("Received JSON: (null)\n");
+      printf("Client %u connected. Context initialized.\n", (unsigned)sender);
     }
     break;
   }
+
+  case TYPE_DISCONNECTED:
+  {
+
+    printf("Client disconnected.\n");
+
+    break;
+  }
+
+  case TYPE_STRING:
+  {
+    ClientInfo *info = getClientContext(sender);
+    if (!info)
+    {
+      printf("Client %u sent a string but has no context!\n", (unsigned)sender);
+      break;
+    }
+    info->messageCount++;
+    printf("Client %u says: \"%s\" (message #%d)\n", (unsigned)sender, data.data.s, info->messageCount);
+
+    const char *orig = data.data.s ? data.data.s : "";
+    size_t needed = snprintf(NULL, 0, "Client %u: %s", (unsigned)sender, orig) + 1;
+    char *buf = malloc(needed);
+    snprintf(buf, needed, "Client %u: %s", (unsigned)sender, orig);
+    Data sendData;
+    sendData.type = TYPE_STRING;
+    sendData.data.s = buf;
+    broadcastToClients(sendData, sender);
+    free(buf);
+    break;
+  }
+
   default:
-    printf("Received unknown type (%d)\n", (int)data.type);
+    printf("Client %u sent unsupported type %d\n",
+           (unsigned)sender, (int)data.type);
     break;
   }
 }
 
-int main()
+int main(void)
 {
   if (init(CONNECTION_TCP, Server) != NETWORK_OK)
-    printf("Error initializing");
+  {
+    printLastError();
+    return 1;
+  }
 
-  startServer(8080, 10, handleClientData);
+  if (startServer(8080, 10, handleClientData) != NETWORK_OK)
+  {
+    printLastError();
+    shutdownNetwork();
+    return 1;
+  }
 
+  printf("Server running on port 8080. Press Enter to shut down.\n");
   getchar();
+
   shutdownNetwork();
-  getchar();
   return 0;
 }

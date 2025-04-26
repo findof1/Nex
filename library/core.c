@@ -162,6 +162,8 @@ static void *serverAcceptLoop(void *arg)
 
     ServerClient *client = &networkContext.server.clients[clientIndex];
     client->socket = clientSocket;
+    client->context = NULL;
+    client->contextDeleter = NULL;
 
     pthread_t thread;
     ClientThreadArgs *args = malloc(sizeof(ClientThreadArgs));
@@ -195,7 +197,9 @@ static void *clientDataLoop(void *arg)
 
   Data clientAcceptedData;
   clientAcceptedData.type = TYPE_CONNECTED;
+  pthread_mutex_lock(&networkContext.lock);
   networkContext.callback.onClientData(clientAcceptedData, args->client->socket.socket);
+  pthread_mutex_unlock(&networkContext.lock);
 
   while (networkContext.server.listening)
   {
@@ -206,8 +210,8 @@ static void *clientDataLoop(void *arg)
 
     if (result == PLATFORM_SUCCESS)
     {
-      pthread_mutex_unlock(&networkContext.lock);
       networkContext.callback.onClientData(data, args->client->socket.socket);
+      pthread_mutex_unlock(&networkContext.lock);
       freeRecvData(&data);
     }
     else if (result == PLATFORM_CONNECTION_CLOSED)
@@ -222,14 +226,15 @@ static void *clientDataLoop(void *arg)
   }
 
   pthread_mutex_lock(&networkContext.lock);
-
   free(args);
   pthread_mutex_unlock(&networkContext.lock);
 
   removeClient(clientIndex);
 
   clientAcceptedData.type = TYPE_DISCONNECTED;
+  pthread_mutex_lock(&networkContext.lock);
   networkContext.callback.onClientData(clientAcceptedData, -1);
+  pthread_mutex_unlock(&networkContext.lock);
 
   return NULL;
 }
@@ -351,6 +356,61 @@ int broadcastToClients(Data data, socket_t sender)
     }
   }
   return result;
+}
+
+int setClientContext(void *context, socket_t client, void (*deleter)(void *))
+{
+  if (client == -1)
+  {
+    strncpy(networkContext.lastError, "Cannot set conext of an invalid or closed client", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  for (int i = 0; i < networkContext.server.numClients; i++)
+  {
+    if (networkContext.server.clients[i].socket.socket != client)
+    {
+      continue;
+    }
+
+    networkContext.server.clients[i].context = context;
+    networkContext.server.clients[i].contextDeleter = deleter;
+
+    return NETWORK_OK;
+  }
+
+  return NETWORK_ERR_UNKNOWN;
+}
+
+void *getClientContext(socket_t client)
+{
+  if (client == -1)
+  {
+    strncpy(networkContext.lastError, "Cannot set conext of an invalid or closed client", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NULL;
+  }
+
+  for (int i = 0; i < networkContext.server.numClients; i++)
+  {
+    if (networkContext.server.clients[i].socket.socket != client)
+    {
+      continue;
+    }
+
+    if (networkContext.server.clients[i].context == NULL)
+    {
+      strncpy(networkContext.lastError, "Warning: Getting NULL client context in getClientContext().", sizeof(networkContext.lastError) - 1);
+      networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    }
+
+    return networkContext.server.clients[i].context;
+  }
+
+  strncpy(networkContext.lastError, "Client passed into getClientContext does not exist!", sizeof(networkContext.lastError) - 1);
+  networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+  return NULL;
 }
 
 int sendToClient(Data data, socket_t client)

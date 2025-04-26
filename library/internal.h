@@ -7,6 +7,8 @@ typedef struct
 {
   Socket socket;
   bool isClosed;
+  void *context;
+  void (*contextDeleter)(void *);
 } ServerClient;
 
 typedef struct

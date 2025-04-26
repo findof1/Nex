@@ -46,6 +46,8 @@ int connectToServer(const char *ip, int port, void (*onServerData)(Data));
 int sendToAllClients(Data data);
 int broadcastToClients(Data data, socket_t sender);
 int sendToClient(Data data, socket_t client);
+int setClientContext(void *context, socket_t client, void (*deleter)(void *));
+void *getClientContext(socket_t client);
 int sendToServer(Data data);
 int shutdownNetwork();
 #endif

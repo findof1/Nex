@@ -14,6 +14,13 @@ void removeClient(int i)
 
   ServerClient *client = &networkContext.server.clients[i];
 
+  if (client->context && client->contextDeleter)
+  {
+    client->contextDeleter(client->context);
+    client->context = NULL;
+    client->contextDeleter = NULL;
+  }
+
   if (!client->isClosed)
   {
     closeSocket(client->socket.socket);
@@ -47,6 +54,13 @@ void removeAllClients()
   for (int i = 0; i < numClients; i++)
   {
     ServerClient *client = &networkContext.server.clients[i];
+
+    if (client->context && client->contextDeleter)
+    {
+      client->contextDeleter(client->context);
+      client->context = NULL;
+      client->contextDeleter = NULL;
+    }
 
     if (!client->isClosed)
     {
