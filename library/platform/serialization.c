@@ -259,8 +259,9 @@ int recvJSON(socket_t socket, cJSON **json)
 
 int recvAny(socket_t socket, Data *data)
 {
-
-  int result = recvData(socket, &data->type, 1, 0);
+  uint8_t rawType;
+  int result = recvData(socket, &rawType, 1, 0);
+  data->type = (NetworkedType)rawType;
   if (result == PLATFORM_CONNECTION_CLOSED || result == PLATFORM_FAILURE)
   {
     return result;

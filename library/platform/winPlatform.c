@@ -94,7 +94,7 @@ int sendData(socket_t socket, const void *buf, size_t len, int flags)
     return PLATFORM_FAILURE;
   }
 
-  if (send(socket, buf, len, flags) == SOCKET_ERROR)
+  if (send(socket, (char *)buf, len, flags) == SOCKET_ERROR)
   {
     printf("Send failed to client socket %d. Error: %d\n", socket, WSAGetLastError());
     return PLATFORM_FAILURE;
@@ -109,7 +109,8 @@ int recvData(socket_t socket, void *buf, size_t len, int flags)
     return PLATFORM_FAILURE;
   }
 
-  int bytesReceived = recv(socket, buf, len, flags);
+  int bytesReceived = recv(socket, (char *)buf, len, flags);
+
   if (bytesReceived == SOCKET_ERROR)
   {
     int err = WSAGetLastError();

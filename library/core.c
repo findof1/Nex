@@ -68,8 +68,8 @@ int startServer(int port, int maxClients, void (*onClientData)(Data, socket_t))
   networkContext.server.maxClients = maxClients;
   networkContext.callback.onClientData = onClientData;
 
-  networkContext.server.clients = calloc(maxClients, sizeof(ServerClient));
-  networkContext.server.clientThreads = calloc(maxClients, sizeof(pthread_t));
+  networkContext.server.clients = (ServerClient *)calloc(maxClients, sizeof(ServerClient));
+  networkContext.server.clientThreads = (pthread_t *)calloc(maxClients, sizeof(pthread_t));
   if (!networkContext.server.clients || !networkContext.server.clientThreads)
   {
     strncpy(networkContext.lastError, "Out of memory allocating client arrays", sizeof(networkContext.lastError) - 1);
@@ -166,7 +166,7 @@ static void *serverAcceptLoop(void *arg)
     client->contextDeleter = NULL;
 
     pthread_t thread;
-    ClientThreadArgs *args = malloc(sizeof(ClientThreadArgs));
+    ClientThreadArgs *args = (ClientThreadArgs *)malloc(sizeof(ClientThreadArgs));
     args->client = client;
     args->clientIndex = clientIndex;
     int result = pthread_create(&thread, NULL, clientDataLoop, args);
@@ -187,6 +187,8 @@ static void *serverAcceptLoop(void *arg)
     }
     pthread_mutex_unlock(&networkContext.lock);
   }
+
+  return NULL;
 }
 
 static void *clientDataLoop(void *arg)
@@ -508,4 +510,15 @@ void printLastError()
   {
     printf("No error occurred.\n");
   }
+}
+
+const char *getLastError()
+{
+  if (strlen(networkContext.lastError) > 0)
+  {
+
+    return networkContext.lastError;
+  }
+
+  return "No error occurred.\n";
 }

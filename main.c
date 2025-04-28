@@ -23,7 +23,7 @@ void handleClientData(Data data, socket_t sender)
     }
     info->messageCount = 0;
 
-    if (setClientContext(info, sender, free) != 0)
+    if (setClientContext(info, sender, free) != NETWORK_OK)
     {
       fprintf(stderr, "Failed to set client context\n");
       free(info);
@@ -62,6 +62,7 @@ void handleClientData(Data data, socket_t sender)
     sendData.type = TYPE_STRING;
     sendData.data.s = buf;
     broadcastToClients(sendData, sender);
+    printLastError();
     free(buf);
     break;
   }

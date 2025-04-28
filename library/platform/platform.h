@@ -1,5 +1,10 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 
 #define PLATFORM_FAILURE -1
@@ -42,6 +47,9 @@ int sendData(socket_t socket, const void *buf, size_t len, int flags);
 int recvData(socket_t socket, void *buf, size_t len, int flags);
 int recvAll(socket_t socket, void *buf, size_t len, int flags);
 
+int sendDataTo(socket_t socket, const void *buf, size_t len, int flags, const struct sockaddr_in *destAddr);
+int recvDataFrom(socket_t socket, void *buf, size_t len, int flags, struct sockaddr_in *srcAddr);
+
 int platformGetLastError();
 
 void shutdownRead(socket_t socket);
@@ -49,5 +57,10 @@ void shutdownWrite(socket_t socket);
 void shutdownBoth(socket_t socket);
 
 int closeSocket(socket_t socket);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
