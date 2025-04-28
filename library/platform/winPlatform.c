@@ -158,6 +158,21 @@ int recvAll(socket_t socket, void *buf, size_t len, int flags)
   return totalReceived;
 }
 
+int sendDataTo(socket_t socket, const void *buf, size_t len, int flags, const struct sockaddr_in *destAddr)
+{
+  int bytesSent = sendto(socket, (const char *)buf, (int)len, flags, (const struct sockaddr *)destAddr, sizeof(struct sockaddr_in));
+
+  return bytesSent;
+}
+
+int recvDataFrom(socket_t socket, void *buf, size_t len, int flags, struct sockaddr_in *srcAddr)
+{
+  int addrLen = sizeof(struct sockaddr_in);
+  int bytesReceived = recvfrom(socket, (char *)buf, (int)len, flags, (struct sockaddr *)srcAddr, &addrLen);
+
+  return bytesReceived;
+}
+
 int platformGetLastError()
 {
   return WSAGetLastError();

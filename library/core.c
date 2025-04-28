@@ -51,6 +51,20 @@ int init(ConnectionType connectionType, SocketType socketType)
 
 int startServer(int port, int maxClients, void (*onClientData)(Data, socket_t))
 {
+  if (networkContext.socketType != Server)
+  {
+    strncpy(networkContext.lastError, "Must have socketType Server passed into init() in order to call startServer()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  if (networkContext.connectionType != CONNECTION_TCP)
+  {
+    strncpy(networkContext.lastError, "Must have connection TCP type set in order to call startServer()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
   if (maxClients <= 0 || onClientData == NULL)
   {
     strncpy(networkContext.lastError, "Invalid max clients or client data passed into: int startServer(int port, int maxClients, void (*onClientData)(Socket *, const char *, size_t))", sizeof(networkContext.lastError) - 1);
@@ -243,6 +257,20 @@ static void *clientDataLoop(void *arg)
 
 int connectToServer(const char *ip, int port, void (*onServerData)(Data))
 {
+  if (networkContext.socketType != Client)
+  {
+    strncpy(networkContext.lastError, "Must have socketType Client passed into init() in order to call connectToServer()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  if (networkContext.connectionType != CONNECTION_TCP)
+  {
+    strncpy(networkContext.lastError, "Must have connection TCP type set in order to call connectToServer()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
   if (onServerData == NULL)
   {
     strncpy(networkContext.lastError, "Invalid onServerData function: int startServer(int port, int maxClients, void (*onClientData)(Socket *, const char *, size_t))", sizeof(networkContext.lastError) - 1);
@@ -325,6 +353,20 @@ static void *clientAcceptLoop(void *arg)
 
 int sendToAllClients(Data data)
 {
+  if (networkContext.socketType != Server)
+  {
+    strncpy(networkContext.lastError, "Must have socketType Server passed into init() in order to call sendToAllClients()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  if (networkContext.connectionType != CONNECTION_TCP)
+  {
+    strncpy(networkContext.lastError, "Must have connection TCP type set in order to call sendToAllClients()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
   int result = NETWORK_OK;
   for (int i = 0; i < networkContext.server.numClients; i++)
   {
@@ -341,6 +383,20 @@ int sendToAllClients(Data data)
 
 int broadcastToClients(Data data, socket_t sender)
 {
+  if (networkContext.socketType != Server)
+  {
+    strncpy(networkContext.lastError, "Must have socketType Server passed into init() in order to call broadcastToClients()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  if (networkContext.connectionType != CONNECTION_TCP)
+  {
+    strncpy(networkContext.lastError, "Must have connection TCP type set in order to call broadcastToClients()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
   int result = NETWORK_OK;
   for (int i = 0; i < networkContext.server.numClients; i++)
   {
@@ -362,6 +418,20 @@ int broadcastToClients(Data data, socket_t sender)
 
 int setClientContext(void *context, socket_t client, void (*deleter)(void *))
 {
+  if (networkContext.socketType != Server)
+  {
+    strncpy(networkContext.lastError, "Must have socketType Server passed into init() in order to call setClientContext()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  if (networkContext.connectionType != CONNECTION_TCP)
+  {
+    strncpy(networkContext.lastError, "Must have connection TCP type set in order to call setClientContext()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
   if (client == -1)
   {
     strncpy(networkContext.lastError, "Cannot set conext of an invalid or closed client", sizeof(networkContext.lastError) - 1);
@@ -387,6 +457,20 @@ int setClientContext(void *context, socket_t client, void (*deleter)(void *))
 
 void *getClientContext(socket_t client)
 {
+  if (networkContext.socketType != Server)
+  {
+    strncpy(networkContext.lastError, "Must have socketType Server passed into init() in order to call getClientContext()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  if (networkContext.connectionType != CONNECTION_TCP)
+  {
+    strncpy(networkContext.lastError, "Must have connection TCP type set in order to call getClientContext()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
   if (client == -1)
   {
     strncpy(networkContext.lastError, "Cannot set conext of an invalid or closed client", sizeof(networkContext.lastError) - 1);
@@ -417,6 +501,13 @@ void *getClientContext(socket_t client)
 
 int sendToClient(Data data, socket_t client)
 {
+  if (networkContext.connectionType != CONNECTION_TCP)
+  {
+    strncpy(networkContext.lastError, "Must have connection TCP type set in order to call sendToClient()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
   int result = 0;
   switch (data.type)
   {
@@ -451,6 +542,20 @@ int sendToClient(Data data, socket_t client)
 
 int sendToServer(Data data)
 {
+  if (networkContext.socketType != Client)
+  {
+    strncpy(networkContext.lastError, "Must have socketType Client passed into init() in order to call sendToServer()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
+  if (networkContext.connectionType != CONNECTION_TCP)
+  {
+    strncpy(networkContext.lastError, "Must have connection TCP type set in order to call sendToServer()", sizeof(networkContext.lastError) - 1);
+    networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
+    return NETWORK_ERR_INVALID;
+  }
+
   int result = 0;
   switch (data.type)
   {
@@ -516,7 +621,6 @@ const char *getLastError()
 {
   if (strlen(networkContext.lastError) > 0)
   {
-
     return networkContext.lastError;
   }
 
