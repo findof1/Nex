@@ -16,6 +16,15 @@ extern "C"
 
   typedef struct
   {
+    struct sockaddr_in addr;
+    int id;
+    bool isClosed;
+    void *context;
+    void (*contextDeleter)(void *);
+  } ConnectedPeer;
+
+  typedef struct
+  {
     Socket socket;
     SocketType socketType;
     ConnectionType connectionType;
@@ -24,13 +33,15 @@ extern "C"
     {
       void (*onClientData)(Data, socket_t);
       void (*onServerData)(Data);
+      void (*onPeerData)(Data, int);
     } callback;
 
     pthread_mutex_t lock;
     bool initialized;
     char lastError[256];
 
-    // server specific fields
+    // tcp specific fields
+    //  server specific fields
     struct
     {
       pthread_t *clientThreads;
@@ -47,12 +58,26 @@ extern "C"
       pthread_t serverThread;
       bool running;
     } client;
+
+    // udp specific fields
+    struct
+    {
+      pthread_t *peerThreads;
+      ConnectedPeer *peers;
+      int maxPeers;
+      int numPeers;
+      bool listening;
+      int idIncrementer;
+    } peer;
+
   } NetworkContext;
 
   extern NetworkContext networkContext;
 
   void removeClient(int i);
   void removeAllClients();
+  void removePeer(int i);
+  void removeAllPeers();
 
 #ifdef __cplusplus
 }

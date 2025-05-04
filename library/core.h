@@ -30,13 +30,15 @@ extern "C"
     NETWORK_ERR_THREAD,
     NETWORK_ERR_INTIALIZATION,
     NETWORK_ERR_INVALID,
+    NETWORK_ERR_MEMORY,
     NETWORK_ERR_UNKNOWN
   } NetworkError;
 
   typedef enum
   {
     Client,
-    Server
+    Server,
+    Peer
   } SocketType;
 
   typedef struct
@@ -46,16 +48,25 @@ extern "C"
   } Socket;
 
   int init(ConnectionType connectionType, SocketType socketType);
-  void printLastError();
-  const char *getLastError();
+
   int startServer(int port, int maxClients, void (*onClientData)(Data, socket_t));
-  int connectToServer(const char *ip, int port, void (*onServerData)(Data));
   int sendToAllClients(Data data);
   int broadcastToClients(Data data, socket_t sender);
   int sendToClient(Data data, socket_t client);
   int setClientContext(void *context, socket_t client, void (*deleter)(void *));
   void *getClientContext(socket_t client);
+
+  int connectToServer(const char *ip, int port, void (*onServerData)(Data));
   int sendToServer(Data data);
+
+  int startPeer(int port, int maxPeers, void (*onPeerData)(Data, int));
+  int connectToPeer(const char *ip, int port);
+  int sendToPeer(Data data, int peer);
+  int setPeerContext(void *context, int peer, void (*deleter)(void *));
+  void *getPeerContext(int peer);
+
+  void printLastError();
+  const char *getLastError();
   int shutdownNetwork();
 
 #ifdef __cplusplus
