@@ -13,7 +13,7 @@ int init(ConnectionType connectionType, SocketType socketType)
   {
     strncpy(networkContext.lastError, "Platform initialization failed", sizeof(networkContext.lastError) - 1);
     networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
-    return NETWORK_ERR_INTIALIZATION;
+    return NETWORK_ERR_INITIALIZATION;
   }
 
   memset(&networkContext, 0, sizeof(NetworkContext));
@@ -22,7 +22,7 @@ int init(ConnectionType connectionType, SocketType socketType)
   {
     strncpy(networkContext.lastError, "Thread Mutex Failed to Initialize", sizeof(networkContext.lastError) - 1);
     networkContext.lastError[sizeof(networkContext.lastError) - 1] = '\0';
-    return NETWORK_ERR_INTIALIZATION;
+    return NETWORK_ERR_INITIALIZATION;
   }
 
   networkContext.connectionType = connectionType;

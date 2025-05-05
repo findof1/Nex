@@ -4,6 +4,8 @@
 #include "platform.h"
 #include "serialization.h"
 #include "core.h"
+#include <vector>
+#include <algorithm>
 
 class PeerInfo
 {
@@ -13,7 +15,7 @@ public:
   PeerInfo() : messageCount(0) {}
 };
 
-int connectedPeer = -1;
+std::vector<int> connectedPeers;
 
 void handlePeerData(Data data, int peer)
 {
@@ -22,7 +24,7 @@ void handlePeerData(Data data, int peer)
   case TYPE_CONNECTED:
   {
     PeerInfo *info = new PeerInfo();
-    connectedPeer = peer;
+    connectedPeers.emplace_back(peer);
 
     if (setPeerContext(info, peer, [](void *ptr)
                        { delete static_cast<PeerInfo *>(ptr); }) != NETWORK_OK)
@@ -38,6 +40,7 @@ void handlePeerData(Data data, int peer)
 
   case TYPE_DISCONNECTED:
   {
+    connectedPeers.erase(std::remove(connectedPeers.begin(), connectedPeers.end(), peer), connectedPeers.end());
     std::cout << "Peer disconnected.\n";
     break;
   }
@@ -85,6 +88,13 @@ int main()
     return 1;
   }
 
+  if (connectToPeer("127.0.0.1", 8002) != NETWORK_OK)
+  {
+    printLastError();
+    shutdownNetwork();
+    return 1;
+  }
+
   char input[512];
   while (fgets(input, sizeof(input), stdin))
   {
@@ -111,17 +121,14 @@ int main()
     msg.type = TYPE_STRING;
     msg.data.s = msg_str;
 
-    if (connectedPeer == -1)
+    for (int i = 0; i < connectedPeers.size(); i++)
     {
-      free(msg_str);
-      continue;
-    }
-
-    if (sendToPeer(msg, connectedPeer) != NETWORK_OK)
-    {
-      printLastError();
-      free(msg_str);
-      break;
+      if (sendToPeer(msg, connectedPeers[i]) != NETWORK_OK)
+      {
+        printLastError();
+        free(msg_str);
+        break;
+      }
     }
 
     free(msg_str);

@@ -72,7 +72,7 @@ int main()
     return 1;
   }
 
-  if (startPeer(8000, 10, handlePeerData) != NETWORK_OK)
+  if (startPeer(8002, 10, handlePeerData) != NETWORK_OK)
   {
     printLastError();
     shutdownNetwork();
@@ -81,14 +81,14 @@ int main()
 
   std::cin.get();
 
-  if (connectToPeer("127.0.0.1", 8001) != NETWORK_OK)
+  if (connectToPeer("127.0.0.1", 8000) != NETWORK_OK)
   {
     printLastError();
     shutdownNetwork();
     return 1;
   }
 
-  if (connectToPeer("127.0.0.1", 8002) != NETWORK_OK)
+  if (connectToPeer("127.0.0.1", 8001) != NETWORK_OK)
   {
     printLastError();
     shutdownNetwork();
