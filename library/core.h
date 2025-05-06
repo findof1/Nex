@@ -93,6 +93,7 @@ extern "C"
   /// Must have called @ref startServer() to use this function.
   ///
   /// @param data The data sent to the client.
+  /// @param client The client you are sending the data to.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see startServer
   int sendToClient(Data data, socket_t client);
@@ -113,7 +114,7 @@ extern "C"
   /// Must have called @ref startServer() to use this function.
   ///
   /// @param client The client of which you want to get the context from.
-  /// @return `NETWORK_OK` on success, else, an error code.
+  /// @return A pointer to the context.
   /// @see setClientContext
   /// @see startServer
   void *getClientContext(socket_t client);
@@ -143,6 +144,7 @@ extern "C"
   /// Must have called @ref init() with connectionType of CONNECTION_UDP to use.
   ///
   /// @param port The port the peer is located on.
+  /// @param maxPeers Maximum number of concurrent peers.
   /// @param onPeerData Callback invoked when data is received from another connected peer.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see connectToPeer
@@ -185,14 +187,12 @@ extern "C"
   /// Must have called @ref connectToPeer() to use this function.
   ///
   /// @param peer The peer of which you want to get the context from.
-  /// @return `NETWORK_OK` on success, else, an error code.
+  /// @return A pointer to the context.
   /// @see setPeerContext
   /// @see connectToPeer
   void *getPeerContext(int peer);
 
   /// Prints out the last known error.
-  ///
-  /// @return void
   void printLastError();
 
   /// Gets the last known error and returns it.

@@ -2,3 +2,9 @@
 main.exe
 *.exe
 testing
+*.css
+*.js
+*.html
+docs
+Doxyfile
+docsStyles
