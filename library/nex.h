@@ -1,5 +1,5 @@
-#ifndef CORE_H
-#define CORE_H
+#ifndef NEX_H
+#define NEX_H
 
 #ifdef __cplusplus
 extern "C"
