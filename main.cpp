@@ -3,7 +3,7 @@
 #include <cstring>
 #include "platform.h"
 #include "serialization.h"
-#include "core.h"
+#include "nex.h"
 
 class ClientInfo
 {

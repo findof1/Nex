@@ -10,3 +10,5 @@ Doxyfile
 docsStyles
 *.dll
 UDPTesting
+Nex_v*
+*.zip
