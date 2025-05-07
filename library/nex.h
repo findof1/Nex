@@ -10,6 +10,12 @@ extern "C"
 #include "stdbool.h"
 #include "serialization.h"
 
+#ifdef NEX_EXPORTS
+#define NEX_API __declspec(dllexport)
+#else
+#define NEX_API __declspec(dllimport)
+#endif
+
   typedef enum
   {
     CONNECTION_TCP,
@@ -52,7 +58,7 @@ extern "C"
   /// @param connectionType The socket framework you are using. Either 'CONNECTION_TCP' or 'CONNECTION_UDP'.
   /// @param socketType The type of socket. Either 'Server', 'Client', or 'Peer'.
   /// @return Returns 'NETWORK_OK' on success, else, an error code.
-  int init(ConnectionType connectionType, SocketType socketType);
+  NEX_API int init(ConnectionType connectionType, SocketType socketType);
 
   /// Starts a server socket and begins listening for clients.
   ///
@@ -64,7 +70,7 @@ extern "C"
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see init
   /// @see sendToClient
-  int startServer(int port, int maxClients, void (*onClientData)(Data, socket_t));
+  NEX_API int startServer(int port, int maxClients, void (*onClientData)(Data, socket_t));
 
   /// Sends data to all clients connected to a server.
   ///
@@ -73,7 +79,7 @@ extern "C"
   /// @param data The data sent to the clients.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see startServer
-  int sendToAllClients(Data data);
+  NEX_API int sendToAllClients(Data data);
 
   /// Sends data to all clients connected to a server aside from a sender.
   ///
@@ -86,7 +92,7 @@ extern "C"
   /// @param sender The original sender that doesn't receive the data.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see startServer
-  int broadcastToClients(Data data, socket_t sender);
+  NEX_API int broadcastToClients(Data data, socket_t sender);
 
   /// Sends data to a specific client connected to a server.
   ///
@@ -96,7 +102,7 @@ extern "C"
   /// @param client The client you are sending the data to.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see startServer
-  int sendToClient(Data data, socket_t client);
+  NEX_API int sendToClient(Data data, socket_t client);
 
   /// Sets a data structure to be associated with a connected client.
   ///
@@ -107,7 +113,7 @@ extern "C"
   /// @param deleter A deleter function that properly frees the structure passed into context.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see startServer
-  int setClientContext(void *context, socket_t client, void (*deleter)(void *));
+  NEX_API int setClientContext(void *context, socket_t client, void (*deleter)(void *));
 
   /// Gets the context set by @ref setClientContext() from a client.
   ///
@@ -117,7 +123,7 @@ extern "C"
   /// @return A pointer to the context.
   /// @see setClientContext
   /// @see startServer
-  void *getClientContext(socket_t client);
+  NEX_API void *getClientContext(socket_t client);
 
   /// Starts a client socket and connects to a server.
   ///
@@ -128,7 +134,7 @@ extern "C"
   /// @param onServerData Callback invoked when data is received from the server.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see init
-  int connectToServer(const char *ip, int port, void (*onServerData)(Data));
+  NEX_API int connectToServer(const char *ip, int port, void (*onServerData)(Data));
 
   /// Sends data to the server previously connected to.
   ///
@@ -137,7 +143,7 @@ extern "C"
   /// @param data The data sent to the server.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see connectToServer
-  int sendToServer(Data data);
+  NEX_API int sendToServer(Data data);
 
   /// Starts a peer socket to later connect with peers via @ref connectToPeer().
   ///
@@ -149,7 +155,7 @@ extern "C"
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see connectToPeer
   /// @see init
-  int startPeer(int port, int maxPeers, void (*onPeerData)(Data, int));
+  NEX_API int startPeer(int port, int maxPeers, void (*onPeerData)(Data, int));
 
   /// Connects to another peer. When data gets recveived, it calls onPeerData that was passed into @ref startPeer().
   ///
@@ -159,7 +165,7 @@ extern "C"
   /// @param port The port the other peer is located on.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see startPeer
-  int connectToPeer(const char *ip, int port);
+  NEX_API int connectToPeer(const char *ip, int port);
 
   /// Sends data to a specific connected peer.
   ///
@@ -169,7 +175,7 @@ extern "C"
   /// @param peer The unique identifier sent to the peer. Note: These identifier are never reused, so it is safe to store a copy; however, they become invalid once a connection is closed.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see connectToPeer
-  int sendToPeer(Data data, int peer);
+  NEX_API int sendToPeer(Data data, int peer);
 
   /// Sets a data structure to be associated with a connected peer.
   ///
@@ -180,7 +186,7 @@ extern "C"
   /// @param deleter A deleter function that properly frees the structure passed into context.
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see connectToPeer
-  int setPeerContext(void *context, int peer, void (*deleter)(void *));
+  NEX_API int setPeerContext(void *context, int peer, void (*deleter)(void *));
 
   /// Gets the context set by @ref setPeerContext() from a peer.
   ///
@@ -190,15 +196,15 @@ extern "C"
   /// @return A pointer to the context.
   /// @see setPeerContext
   /// @see connectToPeer
-  void *getPeerContext(int peer);
+  NEX_API void *getPeerContext(int peer);
 
   /// Prints out the last known error.
-  void printLastError();
+  NEX_API void printLastError();
 
   /// Gets the last known error and returns it.
   ///
   /// @return The error as a const char*
-  const char *getLastError();
+  NEX_API const char *getLastError();
 
   /// Shutdowns the network and cleans all network resources up.
   ///
@@ -206,7 +212,7 @@ extern "C"
   ///
   /// @return `NETWORK_OK` on success, else, an error code.
   /// @see init
-  int shutdownNetwork();
+  NEX_API int shutdownNetwork();
 
 #ifdef __cplusplus
 }

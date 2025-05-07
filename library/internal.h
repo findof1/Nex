@@ -4,7 +4,7 @@
 extern "C"
 {
 #endif
-#include "core.h"
+#include "nex.h"
 #include <pthread.h>
   typedef struct
   {

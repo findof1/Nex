@@ -2,7 +2,7 @@
 #include "platform.h"
 #include "serialization.h"
 #include <assert.h>
-#include "core.h"
+#include "nex.h"
 
 typedef struct
 {

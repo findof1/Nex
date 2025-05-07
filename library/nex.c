@@ -1,4 +1,4 @@
-#include "core.h"
+#include "nex.h"
 #include "internal.h"
 
 static void *serverAcceptLoop(void *arg);
